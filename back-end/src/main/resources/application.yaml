@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: back-end
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/edusmart_db
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
