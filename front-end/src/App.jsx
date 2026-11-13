@@ -38,7 +38,7 @@ function App() {
         <Route path="/instructor" element={<InstructorLayout />}>
           <Route index element={<InstructorDashboard />} />
           <Route path="courses" element={<TeacherCourses />} />
-          <Route path="courses/1" element={<CourseDetailInstructor />} />
+          <Route path="courses/:courseId" element={<CourseDetailInstructor />} />
           <Route path="courses/1/chapters" element={<ManageChapters />} />
           <Route path="courses/1/chapters/1" element={<ManageLessons />} />
           <Route path="courses/1/chapters/1/lessons/1" element={<ManageLessonContent />} />

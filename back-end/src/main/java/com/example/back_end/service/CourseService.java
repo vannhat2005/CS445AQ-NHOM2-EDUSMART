@@ -12,7 +12,8 @@ public interface CourseService {
 
     // giang vien
     PageResponse<CourseResponse> getAssignedCourses(Integer instructorId, int pageNo, int pageSize);
-
+    //Xem chi tiết khóa học được phân công
+    CourseResponse getAssignedCourseDetail(Integer courseId, Integer instructorId);
     // hoc sinh
 
 
