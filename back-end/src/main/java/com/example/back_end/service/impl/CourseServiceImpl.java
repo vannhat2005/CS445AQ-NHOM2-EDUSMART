@@ -61,6 +61,21 @@
         }
 
         @Override
+        public CourseResponse getAssignedCourseDetail(Integer courseId, Integer instructorId) {
+            // 1. Tìm khóa học theo ID khóa học và ID giảng viên
+            Course course = courseRepository
+                    .findByCourseIdAndInstructor_UserId(courseId, instructorId)
+                    .orElseThrow(() -> new RuntimeException(
+                            "Không tìm thấy khóa học hoặc khóa học không được phân công cho giảng viên này"
+                    ));
+
+            // 2. Chuyển Entity sang Response bằng MapStruct
+            return courseMapper.toCourseDetailResponse(course);
+        }
+
+
+
+        @Override
         public void createCourse(CourseRequest request, Integer instructorId) {
             // 1. Dùng mapper để map các field cơ bản từ Request sang Entity
             Course newCourse = courseMapper.toEntity(request);

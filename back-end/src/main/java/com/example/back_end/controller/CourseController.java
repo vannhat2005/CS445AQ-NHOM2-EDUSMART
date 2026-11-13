@@ -38,6 +38,25 @@ public class CourseController {
                 .build(); // Tự động lấy code = 1000 (Thành công)
     }
 
+    // API: Giảng viên xem chi tiết khóa học được phân công
+    // Method: GET
+    // URL: /api/courses/assigned/{instructorId}/{courseId}
+
+    @GetMapping("/assigned/{instructorId}/{courseId}")
+    public ApiResponse<CourseResponse> getAssignedCourseDetail(
+            @PathVariable Integer instructorId,
+            @PathVariable Integer courseId) {
+
+        CourseResponse response = courseService.getAssignedCourseDetail(
+                courseId, instructorId
+        );
+
+        return ApiResponse.<CourseResponse>builder()
+                .message("Lấy chi tiết khóa học thành công")
+                .result(response)
+                .build();
+    }
+
     /**
      * API: Tạo mới khóa học
      * Method: POST

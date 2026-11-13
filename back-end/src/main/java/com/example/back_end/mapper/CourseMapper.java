@@ -15,7 +15,6 @@ public interface CourseMapper {
     CourseResponse toCourseDetailResponse(Course course);
 
     // API xem danh sách phân công
-    @Mapping(target = "description", ignore = true)
     @Mapping(target = "learningOutcomes", ignore = true)
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "instructorId", ignore = true)

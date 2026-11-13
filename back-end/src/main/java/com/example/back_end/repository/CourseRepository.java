@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+import java.util.Optional;
+
 public interface CourseRepository extends JpaRepository<Course, Integer> {
     // Lấy danh sách khóa học dựa theo ID của giảng viên (instructor)
     Page<Course> findByInstructor_UserId(Integer instructorId, Pageable pageable);
@@ -43,4 +45,7 @@ public interface CourseRepository extends JpaRepository<Course, Integer> {
             Pageable pageable
     );
 
+    Optional<Course> findByCourseIdAndInstructor_UserId(
+            Integer courseId, Integer instructorId
+    );
 }
