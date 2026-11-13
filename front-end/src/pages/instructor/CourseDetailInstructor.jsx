@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 
 const CourseDetailInstructor = () => {
+
+
   // State quản lý trạng thái xuất bản của khóa học (true: đã xuất bản, false: bản nháp)
   const [isPublished, setIsPublished] = useState(false);
   const [showModal, setShowModal] = useState(false);
