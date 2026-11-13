@@ -3,6 +3,7 @@ package com.example.back_end.mapper;
 
 import com.example.back_end.dto.request.CourseRequest;
 import com.example.back_end.dto.response.CourseResponse;
+import com.example.back_end.dto.response.CourseSearchResponse;
 import com.example.back_end.entity.Course;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -33,4 +34,21 @@ public interface CourseMapper {
     @Mapping(target = "instructor", ignore = true)
     @Mapping(target = "category", ignore = true)
     Course toEntity(CourseRequest request);
+
+
+    @Mapping(target = "instructorId",
+            source = "instructor.userId")
+    @Mapping(target = "instructorName", ignore = true)
+
+    @Mapping(target = "categoryId",
+            source = "category.categoryId")
+    @Mapping(target = "categoryName", ignore = true)
+
+    @Mapping(target = "originalPrice", ignore = true)
+    @Mapping(target = "discountPercent", ignore = true)
+    @Mapping(target = "averageRating", ignore = true)
+    @Mapping(target = "totalReviews", ignore = true)
+    @Mapping(target = "totalLessons", ignore = true)
+    CourseSearchResponse toCourseSearchResponse(Course course);
+
 }

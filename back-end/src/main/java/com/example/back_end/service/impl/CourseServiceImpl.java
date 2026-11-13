@@ -2,12 +2,14 @@
 
     import com.example.back_end.dto.request.CourseRequest;
     import com.example.back_end.dto.response.CourseResponse;
+    import com.example.back_end.dto.response.CourseSearchResponse;
     import com.example.back_end.dto.response.PageResponse;
     import com.example.back_end.entity.Course;
     import com.example.back_end.enumType.CourseStatus;
     import com.example.back_end.mapper.CourseMapper;
     import com.example.back_end.repository.CategoryRepository;
     import com.example.back_end.repository.CourseRepository;
+    import com.example.back_end.repository.ReviewRepository;
     import com.example.back_end.repository.UserRepository;
     import com.example.back_end.service.CourseService;
     import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@
     import org.springframework.data.domain.PageRequest;
     import org.springframework.data.domain.Pageable;
     import org.springframework.stereotype.Service;
+    import org.springframework.transaction.annotation.Transactional;
 
     import java.util.List;
     import java.util.stream.Collectors;
@@ -29,6 +32,8 @@
         // Inject thêm các repo cần thiết để set khóa ngoại khi tạo mới
         private final UserRepository userRepository;
         private final CategoryRepository categoryRepository;
+
+        private final ReviewRepository reviewRepository;
 
         @Override
         public PageResponse<CourseResponse> getAssignedCourses(Integer instructorId, int pageNo, int pageSize) {
@@ -71,4 +76,74 @@
             // 4. Lưu dữ liệu
             courseRepository.save(newCourse);
         }
+
+        @Override
+        @Transactional(readOnly = true)
+        public PageResponse<CourseSearchResponse> searchCourses(
+                String keyword,
+                int pageNo,
+                int pageSize
+        ) {
+
+            if (pageNo < 1 || pageSize < 1) {
+                throw new IllegalArgumentException(
+                        "pageNo and pageSize must be greater than 0"
+                );
+            }
+
+            Pageable pageable = PageRequest.of(
+                    pageNo - 1,
+                    pageSize
+            );
+
+            String searchKeyword =
+                    keyword == null || keyword.isBlank()
+                            ? null
+                            : keyword.trim();
+
+            Page<Course> coursePage =
+                    courseRepository.searchCourses(
+                            searchKeyword,
+                            CourseStatus.Published,
+                            pageable
+                    );
+
+            List<CourseSearchResponse> content =
+                    coursePage.getContent()
+                            .stream()
+                            .map(course -> {
+
+                                CourseSearchResponse response =
+                                        courseMapper.toCourseSearchResponse(course);
+
+                                Integer courseId = course.getCourseId();
+
+                                Double averageRating =
+                                        reviewRepository.getAverageRating(courseId);
+
+                                Long totalReviews =
+                                        reviewRepository.countByCourse_CourseId(courseId);
+
+                                response.setAverageRating(
+                                        averageRating == null
+                                                ? 0.0
+                                                : Math.round(averageRating * 10.0) / 10.0
+                                );
+
+                                response.setTotalReviews(totalReviews);
+
+                                return response;
+                            })
+                            .toList();
+
+            return PageResponse.<CourseSearchResponse>builder()
+                    .content(content)
+                    .pageNo(coursePage.getNumber() + 1)
+                    .pageSize(coursePage.getSize())
+                    .totalElements(coursePage.getTotalElements())
+                    .totalPages(coursePage.getTotalPages())
+                    .isLast(coursePage.isLast())
+                    .build();
+        }
+
     }

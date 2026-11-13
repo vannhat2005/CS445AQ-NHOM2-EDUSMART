@@ -3,6 +3,7 @@ package com.example.back_end.controller;
 import com.example.back_end.dto.request.CourseRequest;
 import com.example.back_end.dto.response.ApiResponse;
 import com.example.back_end.dto.response.CourseResponse;
+import com.example.back_end.dto.response.CourseSearchResponse;
 import com.example.back_end.dto.response.PageResponse;
 import com.example.back_end.service.CourseService;
 import jakarta.validation.Valid;
@@ -53,4 +54,21 @@ public class CourseController {
                 .message("Tạo khóa học thành công")
                 .build(); // Tự động lấy code = 1000
     }
+
+
+
+    @GetMapping("/search")
+    public PageResponse<CourseSearchResponse> searchCourses(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "8") int pageSize
+    ) {
+        return courseService.searchCourses(
+                keyword,
+                pageNo,
+                pageSize
+        );
+    }
+
+
 }
