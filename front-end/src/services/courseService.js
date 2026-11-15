@@ -20,3 +20,27 @@ export const getAssignedCourses = async (instructorId, pageNo = 1, pageSize = 10
 
     return response.data;
 };
+
+// ==========================================
+// API: Giảng viên xem chi tiết khóa học
+// ==========================================
+export const getAssignedCourseDetail = async (instructorId, courseId) => {
+  const response = await api.get(
+    `/courses/assigned/${instructorId}/${courseId}`
+  );
+
+  return response.data;
+};
+
+// ==========================================
+// API: Giảng viên xuất bản khóa học
+// ==========================================
+// Method: PUT
+// URL: /courses/assigned/{instructorId}/{courseId}/publish
+
+export const publishCourse = (instructorId, courseId) => {
+    return api.put(
+        `/courses/assigned/${instructorId}/${courseId}/publish`
+    );
+};
+

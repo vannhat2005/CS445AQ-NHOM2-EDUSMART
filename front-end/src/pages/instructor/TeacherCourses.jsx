@@ -153,7 +153,7 @@ const TeacherCourses = () => {
                   return (
                     <tr key={course.courseId} className="hover:bg-gray-50/60 transition-colors group">
                       {/* ID khóa học */}
-                      <td className="py-4 px-4 text-center font-medium text-gray-500">{index + 1}</td>
+                      <td className="py-4 px-4 text-center font-medium text-gray-500">{(pageNo - 1) * PAGE_SIZE + index + 1}</td>
 
                       {/* Tên khóa học */}
                       <td className="py-4 px-6">
@@ -162,7 +162,7 @@ const TeacherCourses = () => {
 
                       {/* Mô tả: Backend hiện chưa trả trường description */}
                       <td className="py-4 px-6">
-                        <p className="text-gray-600 truncate max-w-xs">Chưa có mô tả</p>
+                        <p className="text-gray-600 truncate max-w-xs">{course.description}</p>
                       </td>
 
                       {/* Học phí */}
@@ -183,7 +183,7 @@ const TeacherCourses = () => {
                         <button
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-semibold transition-all whitespace-nowrap"
                           type="button"
-                          onClick={() => console.log('Course ID:', course.courseId)}
+                          onClick={() => navigate(`/instructor/courses/${course.courseId}`)}
                         >
                           <span className="material-symbols-outlined text-[18px]">visibility</span>
                           <span>Xem chi tiết</span>
