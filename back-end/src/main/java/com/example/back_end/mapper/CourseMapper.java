@@ -12,6 +12,7 @@ import org.mapstruct.Mapping;
 public interface CourseMapper {
 
     // API xem chi tiết khóa học
+    @Mapping(target = "chapters", ignore = true)
     CourseResponse toCourseDetailResponse(Course course);
 
     // API xem danh sách phân công
@@ -23,6 +24,8 @@ public interface CourseMapper {
     @Mapping(target = "categoryName", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "chapters", ignore = true)
+    @Mapping(target = "chapterCount", ignore = true)
     CourseResponse toCourseListResponse(Course course);
 
     // 2. Map Request -> Entity (Dùng khi tạo mới)

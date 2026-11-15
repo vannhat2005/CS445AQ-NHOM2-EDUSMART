@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -38,4 +39,7 @@ public class CourseResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    // Thêm danh sách chương (chapters) vào CourseResponse
+    private List<ChapterResponse> chapters;
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Toaster } from 'react-hot-toast';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // 1. Import các trang Auth (Đứng độc lập, không kế thừa Layout)
@@ -28,6 +29,39 @@ import InstructorReports from './pages/instructor/InstructorReports';
 function App() {
   return (
     <Router>
+      {/* Cấu hình Toaster cho thông báo toast */}
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          icon: null,
+          style: {
+            borderRadius: '10px',
+            padding: '12px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+            minWidth: '300px',
+          },
+          success: {
+            icon: null,
+            style: {
+              background: '#16A34A',
+              color: '#FFFFFF',
+            },
+          },
+          error: {
+            icon: null,
+            style: {
+              background: '#DC2626',
+              color: '#FFFFFF',
+            },
+          },
+        }}
+      />
+
+      {/* Cấu hình các route cho ứng dụng */}
       <Routes>
         /* ================= PHÂN HỆ AUTH ================= */
         <Route path="/login" element={<Login />} />
@@ -58,7 +92,7 @@ function App() {
         /* ================= PHÂN HỆ HỌC VIÊN ================= */
         <Route path="/student" element={<StudentLayout />}>
           
-          
+
         </Route>
 
 

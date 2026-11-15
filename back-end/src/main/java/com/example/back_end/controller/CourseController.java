@@ -17,6 +17,7 @@ public class CourseController {
 
     private final CourseService courseService;
 
+
     /**
      * API: Lấy danh sách khóa học được phân công (Dành cho Giảng viên)
      * Method: GET
@@ -41,7 +42,7 @@ public class CourseController {
     // API: Giảng viên xem chi tiết khóa học được phân công
     // Method: GET
     // URL: /api/courses/assigned/{instructorId}/{courseId}
-
+    
     @GetMapping("/assigned/{instructorId}/{courseId}")
     public ApiResponse<CourseResponse> getAssignedCourseDetail(
             @PathVariable Integer instructorId,
@@ -72,6 +73,25 @@ public class CourseController {
         return ApiResponse.<Void>builder()
                 .message("Tạo khóa học thành công")
                 .build(); // Tự động lấy code = 1000
+    }
+
+    // =====================================================
+    // API: Giảng viên xuất bản khóa học
+    // Method: PUT
+    // URL: /api/courses/assigned/{instructorId}/{courseId}/publish
+    // =====================================================
+
+    @PutMapping("/assigned/{instructorId}/{courseId}/publish")
+    public ApiResponse<Void> publishCourse(
+            @PathVariable Integer instructorId,
+            @PathVariable Integer courseId) {
+
+        // Gọi Service kiểm tra điều kiện và xuất bản khóa học
+        courseService.publishCourse(courseId, instructorId);
+
+        return ApiResponse.<Void>builder()
+                .message("Xuất bản khóa học thành công")
+                .build();
     }
 
 
