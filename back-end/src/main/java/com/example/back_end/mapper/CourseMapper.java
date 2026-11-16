@@ -25,7 +25,6 @@ public interface CourseMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "chapters", ignore = true)
-    @Mapping(target = "chapterCount", ignore = true)
     CourseResponse toCourseListResponse(Course course);
 
     // 2. Map Request -> Entity (Dùng khi tạo mới)

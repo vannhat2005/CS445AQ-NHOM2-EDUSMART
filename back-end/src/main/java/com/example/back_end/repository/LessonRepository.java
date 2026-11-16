@@ -27,4 +27,7 @@ public interface LessonRepository
             Integer chapterId,
             GeneralStatus status
     );
+
+    // Lấy danh sách bài học trong một chương
+    List<Lesson> findByChapter_ChapterId(Integer chapterId);
 }
