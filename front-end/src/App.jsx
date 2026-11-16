@@ -73,7 +73,7 @@ function App() {
           <Route index element={<InstructorDashboard />} />
           <Route path="courses" element={<TeacherCourses />} />
           <Route path="courses/:courseId" element={<CourseDetailInstructor />} />
-          <Route path="courses/1/chapters" element={<ManageChapters />} />
+          <Route path="courses/:courseId/chapters" element={<ManageChapters />} />
           <Route path="courses/1/chapters/1" element={<ManageLessons />} />
           <Route path="courses/1/chapters/1/lessons/1" element={<ManageLessonContent />} />
           <Route path="courses/1/chapters/1/lessons/1/quiz" element={<QuizEditor />} />

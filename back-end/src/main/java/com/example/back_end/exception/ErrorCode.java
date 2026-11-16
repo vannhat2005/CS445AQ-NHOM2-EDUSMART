@@ -39,7 +39,7 @@ public enum ErrorCode {
     COURSE_NOT_FOUND(2001, "Không tìm thấy khóa học hoặc khóa học không thuộc giảng viên này", HttpStatus.NOT_FOUND),
     COURSE_NOT_DRAFT(2002, "Chỉ khóa học ở trạng thái Draft mới được xuất bản", HttpStatus.CONFLICT),
     COURSE_NO_ACTIVE_CHAPTER(2003, "Khóa học phải có ít nhất một chương hoạt động", HttpStatus.BAD_REQUEST),
-
+    
     // TODO: Bổ sung lỗi tạo, sửa, xóa, ẩn và quản lý khóa học
 
 
@@ -47,9 +47,13 @@ public enum ErrorCode {
     // 4. MODULE CHAPTER - QUẢN LÝ CHƯƠNG
     // (2100 - 2199)
     // ==========================================
-
+    CHAPTER_NOT_FOUND(2100, "Không tìm thấy chương hoặc chương không thuộc khóa học này", HttpStatus.NOT_FOUND),
     CHAPTER_NO_ACTIVE_LESSON(2101, "Chương chưa có bài học hoạt động", HttpStatus.BAD_REQUEST),
-
+    COURSE_MUST_HAVE_ACTIVE_CHAPTER(
+            2103,
+            "Không thể vô hiệu hóa chương học cuối cùng đang hoạt động. Khóa học đã xuất bản phải có ít nhất một chương hoạt động.",
+            HttpStatus.BAD_REQUEST
+    ),
     // TODO: Bổ sung lỗi thêm, sửa, xóa và thay đổi trạng thái chương
 
 

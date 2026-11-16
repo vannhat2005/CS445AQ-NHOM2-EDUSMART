@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ChapterRepository
@@ -26,5 +27,12 @@ public interface ChapterRepository
     List<Chapter> findByCourse_CourseIdAndStatus(Integer courseId, GeneralStatus status);
 
     // Lấy danh sách chương theo ID khóa học và sắp xếp theo orderNumber tăng dần
-    List<Chapter> findByCourse_CourseIdOrderByOrderNumberAsc(Integer courseId);
+    List<Chapter> findByCourse_CourseIdOrderByOrderNumAscChapterIdAsc(Integer courseId);
+
+    // Lấy chương có thứ tự lớn nhất trong khóa học
+    Optional<Chapter> findFirstByCourse_CourseIdOrderByOrderNumDescChapterIdDesc(Integer courseId);
+
+    // Tìm chương theo chapterId và courseId
+    Optional<Chapter> findByChapterIdAndCourse_CourseId(Integer chapterId, Integer courseId);
+
 }
