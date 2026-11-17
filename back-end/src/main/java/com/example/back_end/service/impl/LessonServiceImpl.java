@@ -61,7 +61,7 @@ public class LessonServiceImpl implements LessonService {
 
     // Kiểm tra còn bài học Active khác trong các chương Active của khóa học
     private boolean hasOtherActiveLesson(Integer courseId, Integer excludedLessonId) {
-        List<Chapter> chapters = chapterRepository.findByCourse_CourseIdOrderByOrderNumAscChapterIdAsc(courseId);
+        List<Chapter> chapters = chapterRepository.findByCourse_CourseIdOrderByOrderNumAsc(courseId);
 
         for (Chapter chapter : chapters) {
             if (chapter.getStatus() != GeneralStatus.Active) continue;
