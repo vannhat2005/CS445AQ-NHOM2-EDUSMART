@@ -15,7 +15,7 @@ public interface CourseMapper {
     @Mapping(target = "chapters", ignore = true)
     CourseResponse toCourseDetailResponse(Course course);
 
-    // API xem danh sách phân công
+    // API xem danh sách khóa học được phân công
     @Mapping(target = "learningOutcomes", ignore = true)
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "instructorId", ignore = true)
@@ -27,7 +27,7 @@ public interface CourseMapper {
     @Mapping(target = "chapters", ignore = true)
     CourseResponse toCourseListResponse(Course course);
 
-    // 2. Map Request -> Entity (Dùng khi tạo mới)
+    // Map Request -> Entity (Dùng khi tạo mới)
     @Mapping(target = "courseId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -36,7 +36,7 @@ public interface CourseMapper {
     @Mapping(target = "category", ignore = true)
     Course toEntity(CourseRequest request);
 
-
+    // API tìm kiếm khóa học
     @Mapping(target = "instructorId",
             source = "instructor.userId")
     @Mapping(target = "instructorName", ignore = true)
@@ -51,5 +51,4 @@ public interface CourseMapper {
     @Mapping(target = "totalReviews", ignore = true)
     @Mapping(target = "totalLessons", ignore = true)
     CourseSearchResponse toCourseSearchResponse(Course course);
-
 }

@@ -1,6 +1,12 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+} from "react-router-dom";
 
 // 1. Import các trang Auth (Đứng độc lập, không kế thừa Layout)
 import Login from './pages/auth/Login';
@@ -25,6 +31,17 @@ import DraftManagement from './pages/instructor/DraftManagement';
 import StudentList from './pages/instructor/StudentList';
 import InstructorReports from './pages/instructor/InstructorReports';
 
+// 4. Import các trang của Học viên (STUDENT) - THÊM MỚI
+import HomeContent from './pages/student/HomeContent';
+import SearchResults from './pages/student/SearchResults';
+import CourseCatalog from "./pages/student/CourseCatalog.jsx";
+import CourseDetailPage from "./pages/student/CourseDetailPage";
+
+function StudentCourseDetailRoute() {
+  const { courseId } = useParams();
+
+  return <CourseDetailPage courseId={courseId} />;
+}
 
 function App() {
   return (
@@ -63,12 +80,12 @@ function App() {
 
       {/* Cấu hình các route cho ứng dụng */}
       <Routes>
-        /* ================= PHÂN HỆ AUTH ================= */
+        {/*  ================= PHÂN HỆ AUTH ================= */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        /* ================= PHÂN HỆ GIẢNG VIÊN ================= */
+        {/* ================= PHÂN HỆ ADMIN ================= */}
         <Route path="/instructor" element={<InstructorLayout />}>
           <Route index element={<InstructorDashboard />} />
           <Route path="courses" element={<TeacherCourses />} />
@@ -83,7 +100,7 @@ function App() {
         </Route>
 
 
-        /* ================= PHÂN HỆ ADMIN  ================= */
+        {/* ================= PHÂN HỆ GIẢNG VIÊN ================= */}
         <Route path="/admin" element={<AdminLayout />}>
           {/* <Route index element={<AdminDashboard />} />
           <Route path="accounts" element={<ManageAccounts />} />
@@ -95,16 +112,32 @@ function App() {
 
         </Route>
 
-        /* ================= PHÂN HỆ HỌC VIÊN ================= */
+        {/* ================= PHÂN HỆ HỌC VIÊN ================= */}
         <Route path="/student" element={<StudentLayout />}>
-          
+          <Route index element={<HomeContent />} />
 
+          <Route path="search" element={<SearchResults />} />
+
+          <Route path="courses" element={<CourseCatalog />} />
+
+          {/* Trang chi tiết khóa học */}
+          <Route
+            path="courses/:courseId"
+            element={<StudentCourseDetailRoute />}
+          />
         </Route>
 
+        {/* Điều hướng mặc định */}
+        <Route
+          path="/"
+          element={<Navigate to="/login" replace />}
+        />
 
-        /* Điều hướng mặc định khi truy cập root hoặc trang không tồn tại */
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to="/login" replace />}
+        />
+
       </Routes>
     </Router>
   );

@@ -1,15 +1,14 @@
     package com.example.back_end.service.impl;
 
     import com.example.back_end.dto.request.CourseRequest;
-    import com.example.back_end.dto.response.ChapterResponse;
-    import com.example.back_end.dto.response.CourseResponse;
-    import com.example.back_end.dto.response.CourseSearchResponse;
-    import com.example.back_end.dto.response.PageResponse;
+    import com.example.back_end.dto.response.*;
     import com.example.back_end.entity.Chapter;
     import com.example.back_end.entity.Course;
     import com.example.back_end.entity.Lesson;
+    import com.example.back_end.entity.Review;
     import com.example.back_end.enumType.CourseStatus;
     import com.example.back_end.enumType.GeneralStatus;
+    import com.example.back_end.enumType.RegistrationStatus;
     import com.example.back_end.exception.AppException;
     import com.example.back_end.exception.ErrorCode;
     import com.example.back_end.mapper.ChapterMapper;
@@ -23,7 +22,9 @@
     import org.springframework.stereotype.Service;
     import org.springframework.transaction.annotation.Transactional;
 
+    import java.util.LinkedHashMap;
     import java.util.List;
+    import java.util.Map;
     import java.util.stream.Collectors;
 
     @Service
@@ -33,6 +34,7 @@
         private final CourseRepository courseRepository;
         private final CourseMapper courseMapper;
         private final ChapterMapper chapterMapper;
+        private final CourseRegistrationRepository courseRegistrationRepository;
 
 
         // Inject thêm các repo cần thiết để set khóa ngoại khi tạo mới
@@ -258,5 +260,416 @@
                     .isLast(coursePage.isLast())
                     .build();
         }
+
+
+        @Override
+        @Transactional(readOnly = true)
+        public PageResponse<FeaturedCourseResponse> getFeaturedCourses(
+                int pageNo,
+                int pageSize
+        ) {
+
+            // 1. Kiểm tra tham số phân trang
+            if (pageNo < 1) {
+                throw new IllegalArgumentException("pageNo must be >= 1");
+            }
+
+            if (pageSize < 1 || pageSize > 20) {
+                throw new IllegalArgumentException(
+                        "pageSize must be between 1 and 20"
+                );
+            }
+
+            // 2. Spring Data JPA bắt đầu từ trang 0
+            Pageable pageable = PageRequest.of(pageNo - 1, pageSize);
+
+            // 3. Lấy khóa học Published,
+            // ưu tiên số lượt đăng ký Paid
+            Page<Course> coursePage =
+                    courseRepository.findFeaturedCourses(
+                            CourseStatus.Published,
+                            RegistrationStatus.Paid,
+                            pageable
+                    );
+
+            // 4. Chuyển Entity sang Response
+            Page<FeaturedCourseResponse> responsePage =
+                    coursePage.map(course -> {
+
+                        Integer courseId = course.getCourseId();
+
+                        // 5. Lấy điểm đánh giá trung bình
+                        Double averageRating =
+                                reviewRepository.getAverageRating(courseId);
+
+                        // 6. Đếm tổng lượt đánh giá
+                        Long totalReviews =
+                                reviewRepository.countByCourse_CourseId(
+                                        courseId
+                                );
+
+                        // 7. Đếm học viên đăng ký thành công
+                        Long totalStudents =
+                                courseRegistrationRepository
+                                        .countByCourse_CourseIdAndStatus(
+                                                courseId,
+                                                RegistrationStatus.Paid
+                                        );
+
+
+                        // 8. Trả về dữ liệu cho frontend
+                        return FeaturedCourseResponse.builder()
+                                .courseId(courseId)
+                                .title(course.getTitle())
+                                .description(course.getDescription())
+                                .imageUrl(course.getImageUrl())
+                                .price(course.getPrice())
+                                .instructorName(
+                                        course.getInstructor() != null
+                                                ? course.getInstructor()
+                                                .getFullName()
+                                                : null
+                                )
+                                .averageRating(
+                                        averageRating == null
+                                                ? 0.0
+                                                : Math.round(
+                                                averageRating * 10.0
+                                        ) / 10.0
+                                )
+                                .totalReviews(
+                                        totalReviews == null
+                                                ? 0L
+                                                : totalReviews
+                                )
+                                .totalStudents(
+                                        totalStudents == null
+                                                ? 0L
+                                                : totalStudents
+                                )
+                                .build();
+                    });
+
+            // 9. Chuyển Page sang PageResponse
+            return PageResponse.of(responsePage);
+        }
+
+
+        @Override
+        @Transactional(readOnly = true)
+        public CourseDetailResponse getCourseDetail(Integer courseId) {
+
+            // 1. Kiểm tra courseId
+            if (courseId == null || courseId <= 0) {
+                throw new IllegalArgumentException(
+                        "ID khóa học không hợp lệ"
+                );
+            }
+
+            // 2. Tìm khóa học
+            Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Không tìm thấy khóa học với ID: " + courseId
+                    ));
+
+            // 3. Chỉ cho phép xem khóa học Published
+            if (course.getStatus() != CourseStatus.Published) {
+                throw new IllegalArgumentException(
+                        "Khóa học chưa được xuất bản"
+                );
+            }
+
+            // 4. Lấy đánh giá trung bình
+            Double averageRating =
+                    reviewRepository.getAverageRating(courseId);
+
+            // 5. Tổng số lượt đánh giá
+            Long totalReviews =
+                    reviewRepository.countByCourse_CourseId(courseId);
+
+            // 6. Tổng học viên đã thanh toán
+            Long totalStudents =
+                    courseRegistrationRepository
+                            .countByCourse_CourseIdAndStatus(
+                                    courseId,
+                                    RegistrationStatus.Paid
+                            );
+            boolean isEnrolled = false;
+
+
+
+            // 7. Trả về thông tin chi tiết khóa học
+            return CourseDetailResponse.builder()
+                    .courseId(course.getCourseId())
+                    .title(course.getTitle())
+                    .description(course.getDescription())
+                    .learningOutcomes(course.getLearningOutcomes())
+                    .price(course.getPrice())
+                    .imageUrl(course.getImageUrl())
+                    .status(course.getStatus().name())
+
+                    // Giảng viên
+                    .instructorId(
+                            course.getInstructor() != null
+                                    ? course.getInstructor().getUserId()
+                                    : null
+                    )
+                    .instructorName(
+                            course.getInstructor() != null
+                                    ? course.getInstructor().getFullName()
+                                    : null
+                    )
+
+                    // Danh mục
+                    .categoryId(
+                            course.getCategory() != null
+                                    ? course.getCategory().getCategoryId()
+                                    : null
+                    )
+                    .categoryName(
+                            course.getCategory() != null
+                                    ? course.getCategory().getName()
+                                    : null
+                    )
+
+                    // Đánh giá
+                    .averageRating(
+                            averageRating == null
+                                    ? 0.0
+                                    : Math.round(averageRating * 10.0) / 10.0
+                    )
+                    .totalReviews(
+                            totalReviews == null ? 0L : totalReviews
+                    )
+                    .totalStudents(
+                            totalStudents == null ? 0L : totalStudents
+                    )
+
+                    .build();
+        }
+
+
+
+        @Override
+        @Transactional(readOnly = true)
+        public CourseCurriculumResponse getCourseCurriculum(Integer courseId) {
+
+            // 1. Kiểm tra courseId
+            if (courseId == null || courseId <= 0) {
+                throw new IllegalArgumentException(
+                        "ID khóa học không hợp lệ"
+                );
+            }
+
+            // 2. Tìm khóa học
+            Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Không tìm thấy khóa học với ID: " + courseId
+                    ));
+
+            // 3. Kiểm tra trạng thái khóa học
+            if (course.getStatus() != CourseStatus.Published) {
+                throw new IllegalArgumentException(
+                        "Khóa học chưa được xuất bản"
+                );
+            }
+
+            // 4. Lấy danh sách chương, sắp xếp theo orderNum
+            List<Chapter> chapters =
+                    chapterRepository
+                            .findByCourse_CourseIdOrderByOrderNumAsc(courseId);
+
+            // 5. Chuyển Chapter và Lesson sang Response
+            List<ChapterCurriculumResponse> chapterResponses =
+                    chapters.stream()
+                            .map(chapter -> {
+
+                                // Lấy các bài học thuộc chương
+                                List<Lesson> lessons =
+                                        lessonRepository
+                                                .findByChapter_ChapterIdOrderByOrderNumAsc(
+                                                        chapter.getChapterId()
+                                                );
+
+                                // Chuyển Lesson sang LessonCurriculumResponse
+                                List<LessonCurriculumResponse> lessonResponses =
+                                        lessons.stream()
+                                                .map(lesson ->
+                                                        LessonCurriculumResponse.builder()
+                                                                .lessonId(
+                                                                        lesson.getLessonId()
+                                                                )
+                                                                .title(
+                                                                        lesson.getTitle()
+                                                                )
+                                                                .orderNum(
+                                                                        lesson.getOrderNum()
+                                                                )
+                                                                .build()
+                                                )
+                                                .toList();
+
+                                // Chuyển Chapter sang ChapterCurriculumResponse
+                                return ChapterCurriculumResponse.builder()
+                                        .chapterId(
+                                                chapter.getChapterId()
+                                        )
+                                        .title(
+                                                chapter.getTitle()
+                                        )
+                                        .description(
+                                                chapter.getDescription()
+                                        )
+                                        .orderNum(
+                                                chapter.getOrderNum()
+                                        )
+                                        .totalLessons(
+                                                lessonResponses.size()
+                                        )
+                                        .lessons(
+                                                lessonResponses
+                                        )
+                                        .build();
+                            })
+                            .toList();
+
+            // 6. Tính tổng số bài học
+            int totalLessons = chapterResponses.stream()
+                    .mapToInt(ChapterCurriculumResponse::getTotalLessons)
+                    .sum();
+
+            // 7. Trả về dữ liệu curriculum
+            return CourseCurriculumResponse.builder()
+                    .courseId(courseId)
+                    .totalChapters(chapterResponses.size())
+                    .totalLessons(totalLessons)
+                    .chapters(chapterResponses)
+                    .build();
+        }
+
+
+        @Override
+        @Transactional(readOnly = true)
+        public CourseReviewsResponse getCourseReviews(
+                Integer courseId,
+                int pageNo,
+                int pageSize
+        ) {
+
+            // 1. Kiểm tra tham số
+            if (courseId == null || courseId <= 0) {
+                throw new IllegalArgumentException(
+                        "ID khóa học không hợp lệ"
+                );
+            }
+
+            if (pageNo < 1) {
+                throw new IllegalArgumentException(
+                        "Số trang phải lớn hơn hoặc bằng 1"
+                );
+            }
+
+            if (pageSize < 1 || pageSize > 100) {
+                throw new IllegalArgumentException(
+                        "Kích thước trang phải từ 1 đến 100"
+                );
+            }
+
+            // 2. Kiểm tra khóa học tồn tại
+            Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Không tìm thấy khóa học với ID: " + courseId
+                    ));
+
+            // 3. Chỉ cho xem đánh giá của khóa học Published
+            if (course.getStatus() != CourseStatus.Published) {
+                throw new IllegalArgumentException(
+                        "Khóa học chưa được xuất bản"
+                );
+            }
+
+            // 4. Điểm trung bình
+            Double averageRating =
+                    reviewRepository.getAverageRating(courseId);
+
+            // 5. Tổng lượt đánh giá
+            Long totalReviews =
+                    reviewRepository.countByCourse_CourseId(courseId);
+
+            // 6. Khởi tạo phân bố đánh giá từ 1 đến 5 sao
+            Map<Integer, Long> ratingDistribution =
+                    new LinkedHashMap<>();
+
+            for (int rating = 1; rating <= 5; rating++) {
+                ratingDistribution.put(rating, 0L);
+            }
+
+            // 7. Lấy số lượng đánh giá theo từng mức sao
+            List<Object[]> ratingCounts =
+                    reviewRepository.countReviewsByRating(courseId);
+
+            for (Object[] row : ratingCounts) {
+                if (row[0] != null && row[1] != null) {
+                    Integer rating = ((Number) row[0]).intValue();
+                    Long count = ((Number) row[1]).longValue();
+
+                    if (rating >= 1 && rating <= 5) {
+                        ratingDistribution.put(rating, count);
+                    }
+                }
+            }
+
+            // 8. Phân trang đánh giá
+            Pageable pageable = PageRequest.of(
+                    pageNo - 1,
+                    pageSize
+            );
+
+            Page<Review> reviewPage =
+                    reviewRepository
+                            .findByCourse_CourseIdOrderByCreatedAtDesc(
+                                    courseId,
+                                    pageable
+                            );
+
+            // 9. Map Review sang CourseReviewResponse
+            Page<CourseReviewResponse> responsePage =
+                    reviewPage.map(review ->
+                            CourseReviewResponse.builder()
+                                    .reviewId(review.getReviewId())
+
+                                    .studentId(
+                                            review.getStudent() != null
+                                                    ? review.getStudent().getUserId()
+                                                    : null
+                                    )
+                                    .studentName(
+                                            review.getStudent() != null
+                                                    ? review.getStudent().getFullName()
+                                                    : null
+                                    )
+
+                                    .rating(review.getRating())
+                                    .comment(review.getComment())
+                                    .createdAt(review.getCreatedAt())
+                                    .build()
+                    );
+
+            // 10. Trả kết quả
+            return CourseReviewsResponse.builder()
+                    .courseId(courseId)
+                    .averageRating(
+                            averageRating == null
+                                    ? 0.0
+                                    : Math.round(averageRating * 10.0) / 10.0
+                    )
+                    .totalReviews(
+                            totalReviews == null ? 0L : totalReviews
+                    )
+                    .ratingDistribution(ratingDistribution)
+                    .reviews(PageResponse.of(responsePage))
+                    .build();
+        }
+
 
     }

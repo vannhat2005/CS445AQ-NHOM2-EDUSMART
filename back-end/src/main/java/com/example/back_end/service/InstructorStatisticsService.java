@@ -9,6 +9,7 @@ import java.util.List;
 public interface InstructorStatisticsService {
 
     InstructorStatisticsResponse getStatistics(Integer instructorId);
+
     List<RecentCourseResponse> getRecentCourses(
             Integer instructorId
     );

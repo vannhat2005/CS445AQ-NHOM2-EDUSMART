@@ -2,6 +2,7 @@ package com.example.back_end.repository;
 
 
 import com.example.back_end.entity.CourseRegistration;
+import com.example.back_end.enumType.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,6 +31,20 @@ public interface CourseRegistrationRepository
     long countStudentsByCourseId(
             @Param("courseId") Integer courseId
     );
+
+
+    long countByCourse_CourseIdAndStatus(
+            Integer courseId,
+            RegistrationStatus status
+    );
+
+
+    boolean existsByUser_UserIdAndCourse_CourseIdAndStatus(
+            Integer userId,
+            Integer courseId,
+            RegistrationStatus status
+    );
+
 
 }
 

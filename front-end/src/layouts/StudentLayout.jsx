@@ -1,11 +1,22 @@
-import React from 'react'
+
+import React from "react";
+import { Outlet } from "react-router-dom";
+
+import Header from "../components/student/Header.jsx";
+import Footer from "../components/student/Footer.jsx";
 
 const StudentLayout = () => {
   return (
-    <div>
-      Đây là layout sinh viên
-    </div>
-  )
-}
+    <div className="min-h-screen flex flex-col">
+      <Header />
 
-export default StudentLayout
+      <div className="flex-1">
+        <Outlet />
+      </div>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default StudentLayout;

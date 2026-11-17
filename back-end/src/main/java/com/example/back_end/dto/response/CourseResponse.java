@@ -42,4 +42,5 @@ public class CourseResponse {
 
     // Thêm danh sách chương (chapters) vào CourseResponse
     private List<ChapterResponse> chapters;
+
 }

@@ -29,6 +29,9 @@ public interface LessonRepository
             GeneralStatus status
     );
 
+    List<Lesson> findByChapter_ChapterIdOrderByOrderNumAsc(
+            Integer chapterId
+    );
     // Lấy danh sách bài học trong một chương
     List<Lesson> findByChapter_ChapterId(Integer chapterId);
 
