@@ -26,10 +26,7 @@ public interface ChapterRepository
     // Lấy danh sách chương theo ID khóa học và trạng thái(active/inactive)
     List<Chapter> findByCourse_CourseIdAndStatus(Integer courseId, GeneralStatus status);
 
-    // Lấy danh sách chương theo ID khóa học và sắp xếp theo orderNumber tăng dần
-    List<Chapter> findByCourse_CourseIdOrderByOrderNumAsc(
-            Integer courseId
-    );}
+    // Sắp xếp theo orderNum, nếu trùng thì theo chapterId
     List<Chapter> findByCourse_CourseIdOrderByOrderNumAscChapterIdAsc(Integer courseId);
 
     // Lấy chương có thứ tự lớn nhất trong khóa học
@@ -37,5 +34,8 @@ public interface ChapterRepository
 
     // Tìm chương theo chapterId và courseId
     Optional<Chapter> findByChapterIdAndCourse_CourseId(Integer chapterId, Integer courseId);
+
+    // Sắp xếp theo orderNum tăng dần
+    List<Chapter> findByCourse_CourseIdOrderByOrderNumAsc(Integer courseId);
 
 }

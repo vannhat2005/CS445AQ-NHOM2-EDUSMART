@@ -37,6 +37,16 @@ import SearchResults from './pages/student/SearchResults';
 import CourseCatalog from "./pages/student/CourseCatalog.jsx";
 import CourseDetailPage from "./pages/student/CourseDetailPage";
 
+// 5. Import các trang của Admin
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ManageAccounts from './pages/admin/ManageAccounts';
+import ManageRoles from './pages/admin/ManageRoles';
+import ManageCategories from './pages/admin/ManageCategories';
+import ManageCourses from './pages/admin/ManageCourses';
+import ManagePayments from './pages/admin/ManagePayments';
+import AdminReports from './pages/admin/AdminReports';
+
+
 function StudentCourseDetailRoute() {
   const { courseId } = useParams();
 
@@ -102,13 +112,13 @@ function App() {
 
         {/* ================= PHÂN HỆ GIẢNG VIÊN ================= */}
         <Route path="/admin" element={<AdminLayout />}>
-          {/* <Route index element={<AdminDashboard />} />
+          <Route index element={<AdminDashboard />} />
           <Route path="accounts" element={<ManageAccounts />} />
           <Route path="roles" element={<ManageRoles />} />
           <Route path="categories" element={<ManageCategories />} />
           <Route path="courses" element={<ManageCourses />} />
           <Route path="payments" element={<ManagePayments />} />
-          <Route path="reports" element={<AdminReports />} /> */}
+          <Route path="reports" element={<AdminReports />} />
 
         </Route>
 
