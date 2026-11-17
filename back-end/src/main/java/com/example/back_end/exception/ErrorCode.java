@@ -64,7 +64,10 @@ public enum ErrorCode {
 
     LESSON_NO_VALID_ACTIVE_CONTENT(2201, "Bài học phải có ít nhất một nội dung bài học hoạt động", HttpStatus.BAD_REQUEST),
     LESSON_HAS_INVALID_ACTIVE_CONTENT(2202, "Bài học có nội dung hoạt động chưa hợp lệ", HttpStatus.BAD_REQUEST),
-
+    LESSON_NOT_FOUND(2203, "Không tìm thấy bài học trong chương này.", HttpStatus.NOT_FOUND),
+    LESSON_CHAPTER_INACTIVE(2204, "Không thể kích hoạt bài học vì chương học đang không hoạt động.", HttpStatus.BAD_REQUEST),
+    LESSON_LAST_ACTIVE(2205, "Không thể vô hiệu hóa bài học cuối cùng đang hoạt động của khóa học đã xuất bản.", HttpStatus.BAD_REQUEST),
+    LESSON_MOVE_INVALID(2206, "Không thể di chuyển bài học vượt quá vị trí đầu hoặc cuối.", HttpStatus.BAD_REQUEST),
     // TODO: Bổ sung lỗi thêm, sửa, xóa và thay đổi trạng thái bài học
 
 

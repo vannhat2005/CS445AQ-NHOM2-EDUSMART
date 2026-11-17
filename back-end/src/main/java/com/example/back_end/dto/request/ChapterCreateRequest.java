@@ -13,7 +13,7 @@ import lombok.Setter;
 public class ChapterCreateRequest {
 
     // Tên chương bắt buộc nhập, không được rỗng và tối đa 255 ký tự
-    @NotBlank(message = "Tên chương không được để trống")
+    @NotBlank(message = "Vui lòng nhập tên chương.")
     @Size(max = 255, message = "Tên chương không được vượt quá 255 ký tự")
     private String title;
 

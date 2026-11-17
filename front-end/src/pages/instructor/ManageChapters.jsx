@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,17 @@ import {
   updateChapter,
   moveChapter
 } from '../../services/chapterService';
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  status: 'Inactive'
+};
+
+// Lấy thông báo lỗi từ Backend
+const getErrorMessage = (error, fallback = 'Đã xảy ra lỗi. Vui lòng thử lại.') => {
+  return error.response?.data?.message || fallback;
+};
 
 const ManageChapters = () => {
   const navigate = useNavigate();
@@ -29,22 +40,15 @@ const ManageChapters = () => {
   const [editingChapter, setEditingChapter] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form thêm chương
-  const [createForm, setCreateForm] = useState({
-    title: '',
-    description: '',
-    status: 'Inactive'
-  });
+  // Form thêm và sửa
+  const [createForm, setCreateForm] = useState({ ...EMPTY_FORM });
+  const [editForm, setEditForm] = useState({ ...EMPTY_FORM });
 
-  // Form sửa chương
-  const [editForm, setEditForm] = useState({
-    title: '',
-    description: '',
-    status: 'Inactive'
-  });
+  // ==========================================
+  // 1. LẤY DANH SÁCH CHƯƠNG
+  // ==========================================
 
-  // Lấy danh sách chương
-  const fetchChapters = async () => {
+  const fetchChapters = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -57,31 +61,30 @@ const ManageChapters = () => {
     } catch (err) {
       console.error('Lỗi lấy danh sách chương:', err);
 
-      const message =
-        err.response?.data?.message ||
-        'Không thể tải danh sách chương.';
+      const message = getErrorMessage(
+        err,
+        'Không thể tải danh sách chương.'
+      );
 
       setError(message);
       toast.error(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
 
   useEffect(() => {
     if (courseId) {
       fetchChapters();
     }
-  }, [courseId]);
+  }, [courseId, fetchChapters]);
 
-  // Mở modal thêm
+  // ==========================================
+  // 2. MỞ / ĐÓNG MODAL
+  // ==========================================
+
   const handleOpenCreate = () => {
-    setCreateForm({
-      title: '',
-      description: '',
-      status: 'Inactive'
-    });
-
+    setCreateForm({ ...EMPTY_FORM });
     setShowCreateModal(true);
   };
 
@@ -90,7 +93,6 @@ const ManageChapters = () => {
     setShowCreateModal(false);
   };
 
-  // Mở modal sửa
   const handleOpenEdit = (chapter) => {
     setEditingChapter(chapter);
 
@@ -110,37 +112,15 @@ const ManageChapters = () => {
     setEditingChapter(null);
   };
 
-  // Validate form
-  const validateChapterForm = (form) => {
-    if (!form.title.trim()) {
-      toast.error('Vui lòng nhập tên chương học.');
-      return false;
-    }
+  // ==========================================
+  // 3. THÊM CHƯƠNG
+  // Backend kiểm tra validation từ DTO
+  // ==========================================
 
-    if (form.title.trim().length > 255) {
-      toast.error('Tên chương không được vượt quá 255 ký tự.');
-      return false;
-    }
-
-    if (form.description.length > 5000) {
-      toast.error('Mô tả không được vượt quá 5000 ký tự.');
-      return false;
-    }
-
-    if (!['Active', 'Inactive'].includes(form.status)) {
-      toast.error('Trạng thái chương không hợp lệ.');
-      return false;
-    }
-
-    return true;
-  };
-
-  // Thêm chương
   const handleCreateChapter = async (e) => {
     e.preventDefault();
 
     if (isSubmitting) return;
-    if (!validateChapterForm(createForm)) return;
 
     try {
       setIsSubmitting(true);
@@ -156,26 +136,30 @@ const ManageChapters = () => {
       );
 
       setShowCreateModal(false);
+      setCreateForm({ ...EMPTY_FORM });
+
       await fetchChapters();
     } catch (err) {
       console.error('Lỗi thêm chương:', err);
 
+      // Hiển thị message do Backend trả về
       toast.error(
-        err.response?.data?.message ||
-        'Không thể thêm chương học.'
+        getErrorMessage(err, 'Không thể thêm chương học.')
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Cập nhật chương
+  // ==========================================
+  // 4. CẬP NHẬT CHƯƠNG
+  // Backend kiểm tra validation từ DTO
+  // ==========================================
+
   const handleUpdateChapter = async (e) => {
     e.preventDefault();
 
-    if (isSubmitting) return;
-    if (!editingChapter) return;
-    if (!validateChapterForm(editForm)) return;
+    if (isSubmitting || !editingChapter) return;
 
     try {
       setIsSubmitting(true);
@@ -201,58 +185,61 @@ const ManageChapters = () => {
     } catch (err) {
       console.error('Lỗi cập nhật chương:', err);
 
+      // Hiển thị message do Backend trả về
       toast.error(
-        err.response?.data?.message ||
-        'Không thể cập nhật chương học.'
+        getErrorMessage(err, 'Không thể cập nhật chương học.')
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Thay đổi thứ tự chương - chưa có API
-  
-const handleMove = async (index, direction) => {
-  const targetIndex =
-    direction === 'up' ? index - 1 : index + 1;
+  // ==========================================
+  // 5. THAY ĐỔI THỨ TỰ CHƯƠNG
+  // ==========================================
 
-  if (targetIndex < 0 || targetIndex >= chapters.length) {
-    return;
-  }
+  const handleMove = async (index, direction) => {
+    const targetIndex =
+      direction === 'up' ? index - 1 : index + 1;
 
-  if (isSubmitting) return;
+    if (targetIndex < 0 || targetIndex >= chapters.length) {
+      return;
+    }
 
-  const chapter = chapters[index];
+    if (isSubmitting) return;
 
-  try {
-    setIsSubmitting(true);
+    const chapter = chapters[index];
 
-    const response = await moveChapter(
-      courseId,
-      chapter.chapterId,
-      direction
-    );
+    try {
+      setIsSubmitting(true);
 
-    toast.success(
-      response.message ||
-      'Thay đổi thứ tự chương học thành công!'
-    );
+      const response = await moveChapter(
+        courseId,
+        chapter.chapterId,
+        direction
+      );
 
-    await fetchChapters();
-  } catch (err) {
-    console.error('Lỗi thay đổi thứ tự chương:', err);
+      toast.success(
+        response.message ||
+        'Thay đổi thứ tự chương học thành công!'
+      );
 
-    toast.error(
-      err.response?.data?.message ||
-      'Không thể thay đổi thứ tự chương học.'
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      await fetchChapters();
+    } catch (err) {
+      console.error('Lỗi thay đổi thứ tự chương:', err);
 
+      toast.error(
+        getErrorMessage(
+          err,
+          'Không thể thay đổi thứ tự chương học.'
+        )
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-  // Chỉ hiện cảnh báo khi chuyển Active -> Inactive
+  // Chỉ hiển thị cảnh báo khi chuyển Active -> Inactive
   const isDeactivatingChapter =
     editingChapter?.status === 'Active' &&
     editForm.status === 'Inactive';
@@ -260,7 +247,7 @@ const handleMove = async (index, direction) => {
   return (
     <div className="flex flex-col w-full px-2 pt-4 pb-12">
 
-      {/* BREADCRUMB & HEADER */}
+      {/* ================= BREADCRUMB & HEADER ================= */}
       <div className="flex flex-col gap-2 mb-6">
         <div className="flex items-center justify-between gap-2 mb-1">
           <nav
@@ -330,10 +317,10 @@ const handleMove = async (index, direction) => {
         </div>
       </div>
 
-      {/* TOOLBAR */}
+      {/* ================= TOOLBAR ================= */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
 
           <span className="font-semibold text-sm text-gray-800">
             Danh sách phân phối chương
@@ -352,11 +339,12 @@ const handleMove = async (index, direction) => {
           <span className="material-symbols-outlined text-[20px]">
             add
           </span>
+
           <span>Thêm chương</span>
         </button>
       </div>
 
-      {/* THÔNG BÁO LỖI */}
+      {/* ================= THÔNG BÁO LỖI ================= */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm">
           {error}
@@ -371,7 +359,7 @@ const handleMove = async (index, direction) => {
         </div>
       )}
 
-      {/* BẢNG DANH SÁCH CHƯƠNG */}
+      {/* ================= BẢNG DANH SÁCH CHƯƠNG ================= */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 w-full">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse">
@@ -421,7 +409,7 @@ const handleMove = async (index, direction) => {
                   >
                     {error
                       ? 'Không thể hiển thị danh sách chương.'
-                      : 'Khóa học chưa có chương học nào.'}
+                      : 'Khóa học này chưa có chương học.'}
                   </td>
                 </tr>
               ) : (
@@ -455,7 +443,7 @@ const handleMove = async (index, direction) => {
                         <div className="flex items-center gap-0.5">
                           <button
                             className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
-                            disabled={idx === 0}
+                            disabled={idx === 0 || isSubmitting}
                             onClick={() => handleMove(idx, 'up')}
                             title="Di chuyển lên"
                             type="button"
@@ -467,7 +455,9 @@ const handleMove = async (index, direction) => {
 
                           <button
                             className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
-                            disabled={idx === chapters.length - 1}
+                            disabled={
+                              idx === chapters.length - 1 || isSubmitting
+                            }
                             onClick={() => handleMove(idx, 'down')}
                             title="Di chuyển xuống"
                             type="button"
@@ -484,12 +474,12 @@ const handleMove = async (index, direction) => {
                     <td className="py-4 px-6 text-center">
                       {chap.status === 'Active' ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                           Hoạt động
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                           Không hoạt động
                         </span>
                       )}
@@ -513,7 +503,16 @@ const handleMove = async (index, direction) => {
                           className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-semibold shadow-xs whitespace-nowrap"
                           onClick={() =>
                             navigate(
-                              `/instructor/courses/${courseId}/chapters/${chap.chapterId}`
+                              `/instructor/courses/${courseId}/chapters/${chap.chapterId}`,
+                              {
+                                state: {
+                                  courseTitle:
+                                    courseTitle ||
+                                    chapters[0]?.courseTitle ||
+                                    '',
+                                  chapterTitle: chap.title
+                                }
+                              }
                             )
                           }
                           title="Quản lý bài học"
@@ -562,7 +561,7 @@ const handleMove = async (index, direction) => {
               </button>
             </div>
 
-            {/* Form thêm */}
+            {/* Form thêm: Backend xử lý validation */}
             <form
               className="p-6 flex flex-col gap-4"
               onSubmit={handleCreateChapter}
@@ -584,7 +583,6 @@ const handleMove = async (index, direction) => {
                       title: e.target.value
                     })
                   }
-                  maxLength={255}
                   type="text"
                 />
               </div>
@@ -605,7 +603,6 @@ const handleMove = async (index, direction) => {
                       description: e.target.value
                     })
                   }
-                  maxLength={5000}
                   rows={3}
                 />
               </div>
@@ -691,7 +688,7 @@ const handleMove = async (index, direction) => {
               </button>
             </div>
 
-            {/* Form sửa */}
+            {/* Form sửa: Backend xử lý validation */}
             <form
               className="p-6 flex flex-col gap-4"
               onSubmit={handleUpdateChapter}
@@ -713,7 +710,6 @@ const handleMove = async (index, direction) => {
                       title: e.target.value
                     })
                   }
-                  maxLength={255}
                   type="text"
                 />
               </div>
@@ -734,7 +730,6 @@ const handleMove = async (index, direction) => {
                       description: e.target.value
                     })
                   }
-                  maxLength={5000}
                   rows={3}
                 />
               </div>
@@ -764,7 +759,7 @@ const handleMove = async (index, direction) => {
                   </option>
                 </select>
 
-                {/* CẢNH BÁO MỚI KHI TẮT CHƯƠNG */}
+                {/* Cảnh báo khi tắt chương */}
                 {isDeactivatingChapter && (
                   <div
                     role="alert"
