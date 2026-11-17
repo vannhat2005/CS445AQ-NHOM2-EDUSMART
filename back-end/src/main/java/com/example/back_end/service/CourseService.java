@@ -1,9 +1,9 @@
 package com.example.back_end.service;
 
 import com.example.back_end.dto.request.CourseRequest;
-import com.example.back_end.dto.response.CourseResponse;
-import com.example.back_end.dto.response.CourseSearchResponse;
-import com.example.back_end.dto.response.PageResponse;
+import com.example.back_end.dto.response.*;
+
+import java.util.List;
 
 public interface CourseService {
 
@@ -27,4 +27,20 @@ public interface CourseService {
 
     void publishCourse(Integer courseId, Integer instructorId);
 
+    // lấy danh sách khóa học nổi bật của sinh viên
+    PageResponse<FeaturedCourseResponse> getFeaturedCourses(
+            int pageNo,
+            int pageSize
+    );
+
+    // Học viên xem chi tiết khóa học đã xuất bản
+    CourseDetailResponse getCourseDetail(Integer courseId);
+
+    CourseCurriculumResponse getCourseCurriculum(Integer courseId);
+
+    CourseReviewsResponse getCourseReviews(
+            Integer courseId,
+            int pageNo,
+            int pageSize
+    );
 }

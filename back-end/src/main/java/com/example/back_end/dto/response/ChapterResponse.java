@@ -27,7 +27,7 @@ public class ChapterResponse {
     private Long lessonCount;
 
     // 4. Thông tin thứ tự và trạng thái chương
-    private Integer orderNumber;
+    private Integer orderNum;
     private String status;
 
     // 5. Thông tin thời gian

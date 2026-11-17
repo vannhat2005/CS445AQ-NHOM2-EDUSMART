@@ -1,14 +1,13 @@
 package com.example.back_end.controller;
 
 import com.example.back_end.dto.request.CourseRequest;
-import com.example.back_end.dto.response.ApiResponse;
-import com.example.back_end.dto.response.CourseResponse;
-import com.example.back_end.dto.response.CourseSearchResponse;
-import com.example.back_end.dto.response.PageResponse;
+import com.example.back_end.dto.response.*;
 import com.example.back_end.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -107,6 +106,71 @@ public class CourseController {
                 pageNo,
                 pageSize
         );
+    }
+
+
+    // API: Lấy danh sách khóa học nổi bật cho sinh viên
+    // Method: GET
+    // URL: /api/courses/featured?limit=4
+
+    @GetMapping("/featured")
+    public ApiResponse<PageResponse<FeaturedCourseResponse>> getFeaturedCourses(
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "8") int pageSize
+    ) {
+        PageResponse<FeaturedCourseResponse> response =
+                courseService.getFeaturedCourses(pageNo, pageSize);
+
+        return ApiResponse.<PageResponse<FeaturedCourseResponse>>builder()
+                .message("Lấy danh sách khóa học thành công")
+                .result(response)
+                .build();
+    }
+
+
+
+    // API 1: Lấy thông tin chi tiết khóa học
+    // GET /api/courses/{courseId}/detail
+    @GetMapping("/{courseId}/detail")
+    public ApiResponse<CourseDetailResponse> getCourseDetail(
+            @PathVariable Integer courseId
+    ) {
+        return ApiResponse.<CourseDetailResponse>builder()
+                .message("Lấy thông tin chi tiết khóa học thành công")
+                .result(courseService.getCourseDetail(courseId))
+                .build();
+    }
+
+    // API 2: Lấy nội dung khóa học (Chapter + Lesson)
+    // GET /api/courses/{courseId}/curriculum
+    @GetMapping("/{courseId}/curriculum")
+    public ApiResponse<CourseCurriculumResponse> getCourseCurriculum(
+            @PathVariable Integer courseId
+    ) {
+        return ApiResponse.<CourseCurriculumResponse>builder()
+                .message("Lấy nội dung khóa học thành công")
+                .result(courseService.getCourseCurriculum(courseId))
+                .build();
+    }
+
+
+
+    @GetMapping("/{courseId}/reviews")
+    public ApiResponse<CourseReviewsResponse> getCourseReviews(
+            @PathVariable Integer courseId,
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "5") int pageSize
+    ) {
+        return ApiResponse.<CourseReviewsResponse>builder()
+                .message("Lấy đánh giá khóa học thành công")
+                .result(
+                        courseService.getCourseReviews(
+                                courseId,
+                                pageNo,
+                                pageSize
+                        )
+                )
+                .build();
     }
 
 

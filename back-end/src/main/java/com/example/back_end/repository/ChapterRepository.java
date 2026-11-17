@@ -26,5 +26,6 @@ public interface ChapterRepository
     List<Chapter> findByCourse_CourseIdAndStatus(Integer courseId, GeneralStatus status);
 
     // Lấy danh sách chương theo ID khóa học và sắp xếp theo orderNumber tăng dần
-    List<Chapter> findByCourse_CourseIdOrderByOrderNumberAsc(Integer courseId);
-}
+    List<Chapter> findByCourse_CourseIdOrderByOrderNumAsc(
+            Integer courseId
+    );}

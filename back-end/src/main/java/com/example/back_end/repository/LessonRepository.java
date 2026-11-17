@@ -27,4 +27,8 @@ public interface LessonRepository
             Integer chapterId,
             GeneralStatus status
     );
+
+    List<Lesson> findByChapter_ChapterIdOrderByOrderNumAsc(
+            Integer chapterId
+    );
 }
