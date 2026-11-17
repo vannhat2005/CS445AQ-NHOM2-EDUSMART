@@ -52,7 +52,7 @@ public class ChapterController {
             @Valid @RequestBody ChapterUpdateRequest request
     ) {
         return ApiResponse.<ChapterResponse>builder()
-                .message("Cập nhật chương học thành công")
+                .message("Cập nhật thông tin chương học thành công")
                 .result(
                         chapterService.updateChapter(
                                 courseId,

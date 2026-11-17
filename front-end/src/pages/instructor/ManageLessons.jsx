@@ -1,406 +1,657 @@
-import React, { useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  getLessonsByChapterId,
+  createLesson,
+  updateLesson,
+  moveLesson
+} from '../../services/lessonService';
+
+// Dữ liệu mặc định của form bài học
+const EMPTY_FORM = { title: '', status: 'Active' };
+
+// Lấy thông báo lỗi từ Backend
+const getErrorMessage = (error) => {
+  return error.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+};
 
 const ManageLessons = () => {
-  // Danh sách bài học mẫu
-  const [lessons, setLessons] = useState([
-    { id: 1, title: "Giới thiệu tổng quan", status: "active" },
-    { id: 2, title: "Khái niệm cơ bản", status: "active" },
-    { id: 3, title: "Bài học nâng cao", status: "inactive" },
-  ]);
+  const { courseId, chapterId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Trạng thái kiểm tra cuối chương (chưa tạo hoặc đã tạo)
-  const [quizCreated, setQuizCreated] = useState(false);
+  // Thông tin được truyền từ trang quản lý chương
+  const courseTitle = location.state?.courseTitle;
+  const chapterTitle = location.state?.chapterTitle;
 
-  // State quản lý Modal
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showQuizModal, setShowQuizModal] = useState(false);
+  // Danh sách bài học
+  const [lessons, setLessons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [movingId, setMovingId] = useState(null);
 
-  // Dữ liệu form chỉnh sửa bài học
-  const [editData, setEditData] = useState({ id: null, title: '', status: 'active' });
+  // Modal thêm và sửa bài học
+  const [showModal, setShowModal] = useState(false);
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
-  // Mở modal sửa bài học
-  const handleOpenEdit = (id, title, status) => {
-    setEditData({ id, title, status });
-    setShowEditModal(true);
+  // Chức năng trắc nghiệm chưa triển khai Backend
+  const quizCreated = false;
+
+  // GET: Lấy danh sách bài học thuộc chương
+  const fetchLessons = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await getLessonsByChapterId(courseId, chapterId);
+      const result = response.result;
+
+      setLessons(result?.content || []);
+    } catch (err) {
+      console.error('Lỗi lấy danh sách bài học:', err);
+
+      const message = getErrorMessage(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [courseId, chapterId]);
+
+  // Tải danh sách khi vào trang hoặc thay đổi chương
+  useEffect(() => {
+    fetchLessons();
+  }, [fetchLessons]);
+
+  // Mở Modal thêm bài học
+  const handleOpenAdd = () => {
+    setEditingLesson(null);
+    setFormData({ ...EMPTY_FORM });
+    setShowModal(true);
   };
 
-  // Di chuyển thứ tự bài học lên/xuống
-  const handleMove = (index, direction) => {
-    const newLessons = [...lessons];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newLessons.length) return;
+  // Mở Modal sửa và hiển thị dữ liệu bài học
+  const handleOpenEdit = (lesson) => {
+    setEditingLesson(lesson);
+    setFormData({
+      title: lesson.title || '',
+      status: lesson.status || 'Active'
+    });
+    setShowModal(true);
+  };
 
-    const temp = newLessons[index];
-    newLessons[index] = newLessons[targetIndex];
-    newLessons[targetIndex] = temp;
-    setLessons(newLessons);
+  // Đóng Modal
+  const handleCloseModal = () => {
+    if (saving) return;
+
+    setShowModal(false);
+    setEditingLesson(null);
+    setFormData({ ...EMPTY_FORM });
+  };
+
+  // POST/PUT: Thêm hoặc sửa bài học, lấy message từ Backend
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (saving) return;
+
+    const payload = {
+      title: formData.title.trim(),
+      status: formData.status
+    };
+
+    try {
+      setSaving(true);
+
+      if (editingLesson) {
+        const response = await updateLesson(
+          courseId,
+          chapterId,
+          editingLesson.lessonId,
+          payload
+        );
+
+        toast.success(response.message || 'Cập nhật bài học thành công.');
+      } else {
+        const response = await createLesson(courseId, chapterId, payload);
+
+        toast.success(response.message || 'Thêm bài học thành công.');
+      }
+
+      // Đóng Modal và tải lại danh sách sau khi lưu
+      setShowModal(false);
+      setEditingLesson(null);
+      setFormData({ ...EMPTY_FORM });
+
+      await fetchLessons();
+    } catch (err) {
+      console.error('Lỗi lưu bài học:', err);
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // PATCH: Di chuyển bài học lên hoặc xuống một vị trí
+  const handleMove = async (lessonId, direction) => {
+    if (movingId !== null) return;
+
+    try {
+      setMovingId(lessonId);
+
+      const response = await moveLesson(
+        courseId,
+        chapterId,
+        lessonId,
+        direction
+      );
+
+      toast.success(response.message || 'Thay đổi thứ tự bài học thành công.');
+
+      await fetchLessons();
+    } catch (err) {
+      console.error('Lỗi thay đổi thứ tự bài học:', err);
+      toast.error(getErrorMessage(err));
+    } finally {
+      setMovingId(null);
+    }
   };
 
   return (
     <div className="flex flex-col w-full px-2 pt-4 pb-12">
-      {/* Header Context & Breadcrumbs */}
+
+      {/* ================= HEADER & BREADCRUMB ================= */}
       <div className="flex flex-col gap-2 mb-6">
-        <div className="flex items-center justify-between w-full">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-gray-500">
-            <a className="hover:text-blue-600 transition-colors" href="/instructor/courses">Khóa học</a>
-            <span className="material-symbols-outlined text-[14px] text-gray-400">chevron_right</span>
-            <a className="hover:text-blue-600 transition-colors" href="/instructor/courses/detail">Chi tiết khóa học</a>
-            <span className="material-symbols-outlined text-[14px] text-gray-400">chevron_right</span>
-            <a className="hover:text-blue-600 transition-colors" href="/instructor/chapters">Quản lý chương học</a>
-            <span className="material-symbols-outlined text-[14px] text-gray-400">chevron_right</span>
-            <span className="text-blue-600 font-semibold">Quản lý bài học</span>
-          </nav>
-          {/* Return Button */}
-          <button 
-            className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-all border border-gray-100" 
-            onClick={() => window.history.back()} 
-            title="Quay lại danh sách chương" 
-            type="button"
+        <div className="flex items-center justify-between w-full gap-3">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center flex-wrap gap-2 text-sm text-gray-500"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <Link
+              to="/instructor/courses"
+              className="hover:text-blue-600 transition-colors"
+            >
+              Khóa học
+            </Link>
+
+            <span className="material-symbols-outlined text-[14px] text-gray-400">
+              chevron_right
+            </span>
+
+            <Link
+              to={`/instructor/courses/${courseId}`}
+              className="hover:text-blue-600 transition-colors"
+            >
+              Chi tiết khóa học
+            </Link>
+
+            <span className="material-symbols-outlined text-[14px] text-gray-400">
+              chevron_right
+            </span>
+
+            <Link
+              to={`/instructor/courses/${courseId}/chapters`}
+              className="hover:text-blue-600 transition-colors"
+            >
+              Quản lý chương học
+            </Link>
+
+            <span className="material-symbols-outlined text-[14px] text-gray-400">
+              chevron_right
+            </span>
+
+            <span className="text-blue-600 font-semibold">
+              Quản lý bài học
+            </span>
+          </nav>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/instructor/courses/${courseId}/chapters`)}
+            title="Quay lại danh sách chương"
+            className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-blue-600 hover:bg-gray-50 border border-gray-100 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              arrow_back
+            </span>
           </button>
         </div>
 
-        {/* Title & Metadata Tagline */}
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quản lý bài học</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Quản lý bài học
+          </h1>
+
           <div className="flex items-center flex-wrap gap-2 text-sm text-gray-600">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gray-100 text-blue-700 font-medium">
-              Khóa học: Lập trình C (C Programming Fundamentals)
+            <span className="inline-flex items-center px-3 py-0.5 rounded-full bg-gray-100 text-blue-700 font-medium">
+              Khóa học: {courseTitle || `#${courseId}`}
             </span>
+
             <span className="text-gray-400">•</span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gray-50 text-gray-700 font-medium">
-              Chương: Chương 1: Giới thiệu
+
+            <span className="inline-flex items-center px-3 py-0.5 rounded-full bg-gray-50 text-gray-700 font-medium">
+              Chương: {chapterTitle || lessons[0]?.chapterTitle || `#${chapterId}`}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Primary Content Area */}
+      {/* ================= THANH CÔNG CỤ ================= */}
       <div className="flex flex-col gap-4">
-        {/* Action Toolbar Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 px-1">
           <div className="flex items-center gap-3">
-            <h2 className="text-base font-semibold text-gray-900">Danh sách phân phối bài học</h2>
-            <span className="px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold tracking-wide">
-              {lessons.length} bài học • {quizCreated ? '1 bài kiểm tra' : '0 bài kiểm tra'}
+            <h2 className="text-base font-semibold text-gray-900">
+              Danh sách phân phối bài học
+            </h2>
+
+            <span className="px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+              {lessons.length} bài học • {quizCreated ? 1 : 0} bài kiểm tra
             </span>
           </div>
-          <button 
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm transition-all active:scale-[0.98]" 
-            onClick={() => setShowAddModal(true)} 
+
+          <button
             type="button"
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm transition-all"
           >
-            <span className="material-symbols-outlined text-[19px]">add</span>
-            <span>Thêm bài học</span>
+            <span className="material-symbols-outlined text-[19px]">
+              add
+            </span>
+            Thêm bài học
           </button>
         </div>
 
-        {/* Lessons Table Card */}
+        {/* Thông báo khi không tải được danh sách */}
+        {error && (
+          <div className="p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm">
+            {error}
+
+            <button
+              type="button"
+              onClick={fetchLessons}
+              className="ml-3 font-semibold underline"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
+
+        {/* ================= BẢNG BÀI HỌC ================= */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 w-full">
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-gray-600 font-medium text-xs border-b border-gray-100">
-                  <th className="py-3.5 px-4 font-semibold w-16 text-center" scope="col">ID</th>
-                  <th className="py-3.5 px-6 font-semibold" scope="col">Tên bài học</th>
-                  <th className="py-3.5 px-6 font-semibold w-48 text-center" scope="col">Thứ tự bài học</th>
-                  <th className="py-3.5 px-6 font-semibold w-40" scope="col">Trạng thái</th>
-                  <th className="py-3.5 px-6 font-semibold w-80 text-right" scope="col">Thao tác</th>
+                <tr className="bg-gray-50 text-gray-600 text-xs border-b border-gray-100">
+                  <th className="py-3.5 px-4 font-semibold w-16 text-center">
+                    ID
+                  </th>
+
+                  <th className="py-3.5 px-6 font-semibold">
+                    Tên bài học
+                  </th>
+
+                  <th className="py-3.5 px-6 font-semibold w-48 text-center">
+                    Thứ tự bài học
+                  </th>
+
+                  <th className="py-3.5 px-6 font-semibold w-40">
+                    Trạng thái
+                  </th>
+
+                  <th className="py-3.5 px-6 font-semibold w-80 text-right">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
+
               <tbody className="text-sm text-gray-900 divide-y divide-gray-100">
-                {lessons.map((lesson, idx) => (
-                  <tr key={lesson.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="py-4 px-4 text-center font-medium text-gray-500">{lesson.id}</td>
-                    <td className="py-4 px-6 font-semibold text-gray-900">
-                      <div className="flex items-center gap-2">
-                        <span>{lesson.title}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="inline-flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
-                        <span className="w-6 h-6 rounded bg-white text-blue-600 font-bold flex items-center justify-center text-xs shadow-xs border border-gray-100">{idx + 1}</span>
-                        <div className="flex flex-col gap-0.5">
-                          <button 
-                            className="w-4 h-4 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-200 flex items-center justify-center transition-colors disabled:opacity-30" 
-                            disabled={idx === 0} 
-                            onClick={() => handleMove(idx, 'up')}
-                            title="Di chuyển lên" 
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">expand_less</span>
-                          </button>
-                          <button 
-                            className="w-4 h-4 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-200 flex items-center justify-center transition-colors disabled:opacity-30" 
-                            disabled={idx === lessons.length - 1} 
-                            onClick={() => handleMove(idx, 'down')}
-                            title="Di chuyển xuống" 
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">expand_more</span>
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 whitespace-nowrap">
-                      {lesson.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                          Hoạt động
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium">
-                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                          Không hoạt động
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2">
-                        <button 
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-blue-600 text-xs font-medium transition-colors" 
-                          onClick={() => handleOpenEdit(lesson.id, lesson.title, lesson.status)} 
-                          type="button"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">edit</span>
-                          <span>Sửa</span>
-                        </button>
-                        <a 
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium transition-colors" 
-                          href="/instructor/lesson-content"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">article</span>
-                          <span>Quản lý nội dung bài học</span>
-                        </a>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-12 text-center text-gray-500"
+                    >
+                      Đang tải danh sách bài học...
                     </td>
                   </tr>
-                ))}
-
-                {/* Dòng Kiểm tra cuối chương */}
-                <tr className="bg-gray-50/60 hover:bg-gray-50 transition-colors border-t border-gray-200">
-                  <td className="py-4 px-4 text-center font-medium text-gray-500">{lessons.length + 1}</td>
-                  <td className="py-4 px-6 font-semibold text-gray-900">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-blue-600">Kiểm tra cuối chương</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-center"><span className="text-gray-400 font-medium">—</span></td>
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    {quizCreated ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        Đã tạo
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                        <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                        Chưa tạo
-                      </span>
+                ) : (
+                  <>
+                    {/* Danh sách trống */}
+                    {lessons.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="py-12 text-center text-gray-500"
+                        >
+                          {error
+                            ? 'Không thể hiển thị danh sách bài học.'
+                            : 'Chương học chưa có bài học nào.'}
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="py-4 px-6 text-right whitespace-nowrap">
-                    <div className="inline-flex items-center gap-2">
-                      <button 
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium shadow-xs transition-all" 
-                        type="button" 
-                        onClick={() => setShowQuizModal(true)}
+
+                    {/* Hiển thị từng bài học */}
+                    {lessons.map((lesson, index) => (
+                      <tr
+                        key={lesson.lessonId}
+                        className="hover:bg-gray-50/50 transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                        <span>{quizCreated ? 'Cấu hình trắc nghiệm' : 'Tạo trắc nghiệm'}</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {/* ID bài học */}
+                        <td className="py-4 px-4 text-center font-medium text-gray-500">
+                          {lesson.lessonId}
+                        </td>
+
+                        {/* Tên bài học */}
+                        <td className="py-4 px-6 font-semibold text-gray-900">
+                          {lesson.title}
+                        </td>
+
+                        {/* Thứ tự và di chuyển */}
+                        <td className="py-4 px-6 text-center">
+                          <div className="inline-flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
+                            <span className="w-6 h-6 rounded bg-white text-blue-600 font-bold flex items-center justify-center text-xs border border-gray-100">
+                              {lesson.orderNum ?? index + 1}
+                            </span>
+
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                title="Di chuyển lên"
+                                disabled={index === 0 || movingId !== null}
+                                onClick={() => handleMove(lesson.lessonId, 'up')}
+                                className="w-4 h-4 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-200 flex items-center justify-center disabled:opacity-30"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">
+                                  expand_less
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Di chuyển xuống"
+                                disabled={index === lessons.length - 1 || movingId !== null}
+                                onClick={() => handleMove(lesson.lessonId, 'down')}
+                                className="w-4 h-4 rounded text-gray-400 hover:text-blue-600 hover:bg-gray-200 flex items-center justify-center disabled:opacity-30"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">
+                                  expand_more
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Trạng thái bài học */}
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          {lesson.status === 'Active' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              Hoạt động
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium">
+                              <span className="w-2 h-2 rounded-full bg-rose-500" />
+                              Không hoạt động
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Nút thao tác */}
+                        <td className="py-4 px-6 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(lesson)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-blue-600 text-xs font-medium"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                edit
+                              </span>
+                              Sửa
+                            </button>
+
+                            <Link
+                              to={`/instructor/courses/${courseId}/chapters/${chapterId}/lessons/${lesson.lessonId}`}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                article
+                              </span>
+                              Quản lý nội dung bài học
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* ================= KIỂM TRA CUỐI CHƯƠNG ================= */}
+                    <tr className="bg-gray-50/60 hover:bg-gray-50 border-t border-gray-200">
+                      <td className="py-4 px-4 text-center font-medium text-gray-500">
+                        —
+                      </td>
+
+                      <td className="py-4 px-6 font-semibold text-blue-600">
+                        Kiểm tra cuối chương
+                      </td>
+
+                      <td className="py-4 px-6 text-center text-gray-400">
+                        —
+                      </td>
+
+                      <td className="py-4 px-6 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                          <span className="w-2 h-2 rounded-full bg-gray-400" />
+                          Chưa tạo
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => toast('Chức năng tạo trắc nghiệm sẽ được triển khai sau.')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            add_circle
+                          </span>
+                          Tạo trắc nghiệm
+                        </button>
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      {/* MODAL 1: Thêm bài học mới */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden border border-gray-100">
+      {/* ================= MODAL THÊM / SỬA BÀI HỌC ================= */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lesson-modal-title"
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100"
+          >
+            {/* Header Modal */}
             <div className="px-6 py-4 bg-gray-50 flex items-center justify-between border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600 text-[22px]">post_add</span>
-                <h3 className="text-base font-semibold text-gray-900">Thêm bài học mới</h3>
-              </div>
-              <button className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors" onClick={() => setShowAddModal(false)} type="button">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            <form className="p-6 flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setShowAddModal(false); }}>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                  <span>Tên bài học</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <input className="w-full h-10 px-3.5 rounded-lg bg-gray-50 text-gray-900 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Nhập tên bài học..." required type="text" />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700">Trạng thái</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
-                    <input defaultChecked className="w-4 h-4 text-blue-600 accent-blue-600" name="new-lesson-status" type="radio" value="active" />
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>Hoạt động</span>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
-                    <input className="w-4 h-4 text-blue-600 accent-blue-600" name="new-lesson-status" type="radio" value="inactive" />
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      <span>Không hoạt động</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50 text-gray-600 text-xs border border-gray-200">
-                <span>Thứ tự bài học sẽ được tự động xếp ở cuối danh sách. Giảng viên có thể đổi thứ tự bằng mũi tên sau khi lưu.</span>
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
-                <button className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors" onClick={() => setShowAddModal(false)} type="button">Hủy</button>
-                <button className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all" type="submit">
-                  <span className="material-symbols-outlined text-[18px]">save</span>
-                  <span>Lưu bài học</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <span className="material-symbols-outlined text-blue-600 text-[22px]">
+                  {editingLesson ? 'edit_note' : 'post_add'}
+                </span>
 
-      {/* MODAL 2: Chỉnh sửa bài học */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden border border-gray-100">
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600 text-[22px]">edit_note</span>
-                <h3 className="text-base font-semibold text-gray-900">Chỉnh sửa bài học</h3>
+                <h3
+                  id="lesson-modal-title"
+                  className="text-base font-semibold text-gray-900"
+                >
+                  {editingLesson ? 'Chỉnh sửa bài học' : 'Thêm bài học mới'}
+                </h3>
               </div>
-              <button className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors" onClick={() => setShowEditModal(false)} type="button">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleCloseModal}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
               </button>
             </div>
-            <form className="p-6 flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setShowEditModal(false); }}>
+
+            {/* Form không dùng validation của trình duyệt.
+                Backend sẽ kiểm tra và trả message cho Toast. */}
+            <form
+              className="p-6 flex flex-col gap-4"
+              onSubmit={handleSubmit}
+              noValidate
+            >
+              {/* Tên bài học */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                  <span>Tên bài học</span>
-                  <span className="text-red-500">*</span>
+                <label
+                  htmlFor="lesson-title"
+                  className="text-xs font-semibold text-gray-700"
+                >
+                  Tên bài học <span className="text-red-500">*</span>
                 </label>
-                <input 
-                  className="w-full h-10 px-3.5 rounded-lg bg-gray-50 text-gray-900 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600" 
-                  value={editData.title}
-                  onChange={(e) => setEditData({...editData, title: e.target.value})}
-                  required 
-                  type="text" 
+
+                <input
+                  id="lesson-title"
+                  type="text"
+                  value={formData.title}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      title: event.target.value
+                    })
+                  }
+                  placeholder="Nhập tên bài học..."
+                  className="w-full h-10 px-3.5 rounded-lg bg-gray-50 text-gray-900 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700">Trạng thái</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
-                    <input 
-                      checked={editData.status === 'active'} 
-                      onChange={() => setEditData({...editData, status: 'active'})}
-                      className="w-4 h-4 text-blue-600 accent-blue-600" 
-                      name="edit-lesson-status" 
-                      type="radio" 
-                      value="active" 
-                    />
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>Hoạt động</span>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
-                    <input 
-                      checked={editData.status === 'inactive'} 
-                      onChange={() => setEditData({...editData, status: 'inactive'})}
-                      className="w-4 h-4 text-blue-600 accent-blue-600" 
-                      name="edit-lesson-status" 
-                      type="radio" 
-                      value="inactive" 
-                    />
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      <span>Không hoạt động</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-              <div className="pt-2 flex items-center justify-between border-t border-gray-100 mt-1">
-                <a className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-semibold" href="/instructor/lesson-content">
-                  <span className="material-symbols-outlined text-[18px]">launch</span>
-                  <span>Quản lý nội dung bài học</span>
-                </a>
-                <div className="flex items-center gap-2">
-                  <button className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors" onClick={() => setShowEditModal(false)} type="button">Hủy</button>
-                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all" type="submit">
-                    <span className="material-symbols-outlined text-[18px]">check</span>
-                    <span>Lưu thay đổi</span>
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* MODAL 3: Cấu hình trắc nghiệm cuối chương */}
-      {showQuizModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden border border-gray-100">
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-600 text-[22px]">quiz</span>
-                  <h3 className="text-base font-semibold text-gray-900">Cấu hình kiểm tra cuối chương</h3>
-                </div>
-                <p className="text-xs text-gray-500 mt-0.5">Thiết lập thông tin cho bài kiểm tra cuối chương.</p>
+                <span className={`text-xs text-right ${
+                  formData.title.length > 255
+                    ? 'text-red-500'
+                    : 'text-gray-400'
+                }`}>
+                  {formData.title.length}/255 ký tự
+                </span>
               </div>
-              <button className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors shrink-0" onClick={() => setShowQuizModal(false)} type="button">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            <form className="p-6 flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setQuizCreated(true); setShowQuizModal(false); }}>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
-                  <span>Thời gian làm bài <span className="text-red-500">*</span></span>
-                  <span className="text-gray-400 text-xs font-normal">Tối đa 180 phút</span>
+
+              {/* Trạng thái bài học */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-700">
+                  Trạng thái <span className="text-red-500">*</span>
                 </label>
-                <div className="relative flex items-center">
-                  <input className="w-full h-10 pl-3.5 pr-16 rounded-lg bg-gray-50 text-gray-900 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600" max="180" min="1" required type="number" defaultValue="15" />
-                  <span className="absolute right-3.5 text-gray-500 text-sm pointer-events-none select-none">phút</span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      value: 'Active',
+                      label: 'Hoạt động',
+                      color: 'bg-emerald-500'
+                    },
+                    {
+                      value: 'Inactive',
+                      label: 'Không hoạt động',
+                      color: 'bg-rose-500'
+                    }
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center gap-2.5 p-3 rounded-lg cursor-pointer border transition-colors ${
+                        formData.status === option.value
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="lesson-status"
+                        value={option.value}
+                        checked={formData.status === option.value}
+                        onChange={() =>
+                          setFormData({
+                            ...formData,
+                            status: option.value
+                          })
+                        }
+                        className="w-4 h-4 accent-blue-600"
+                      />
+
+                      <span className={`w-2 h-2 rounded-full ${option.color}`} />
+
+                      <span className="text-sm font-medium text-gray-900">
+                        {option.label}
+                      </span>
+                    </label>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-500">Thời gian đếm ngược khi sinh viên bắt đầu làm bài trắc nghiệm.</p>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
-                  <span>Điểm đạt yêu cầu <span className="text-red-500">*</span></span>
-                  <span className="text-gray-400 text-xs font-normal">Thang điểm 10.0</span>
-                </label>
-                <div className="relative flex items-center">
-                  <input className="w-full h-10 pl-3.5 pr-28 rounded-lg bg-gray-50 text-gray-900 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600" max="10" min="0" required step="0.1" type="number" defaultValue="5.0" />
-                  <span className="absolute right-3.5 text-gray-500 text-sm pointer-events-none select-none">điểm / 10.0</span>
+
+              {/* Ghi chú thứ tự khi thêm bài học */}
+              {!editingLesson && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50 text-gray-600 text-xs border border-gray-200">
+                  <span className="material-symbols-outlined text-[18px] text-blue-600 shrink-0">
+                    info
+                  </span>
+
+                  <span>
+                    Thứ tự bài học sẽ được tự động xếp ở cuối danh sách.
+                    Giảng viên có thể thay đổi thứ tự bằng mũi tên sau khi lưu.
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500">Điểm số tối thiểu sinh viên cần đạt để hoàn thành chương học này.</p>
-              </div>
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50 text-gray-600 text-xs border border-gray-200">
-                <span className="material-symbols-outlined text-[18px] text-blue-600 shrink-0">info</span>
-                <span>Sau khi lưu cấu hình, hệ thống sẽ mở giao diện soạn thảo danh sách câu hỏi trắc nghiệm cho bài kiểm tra.</span>
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100 mt-1">
-                <button className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors" onClick={() => setShowQuizModal(false)} type="button">Hủy</button>
-                <button className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all active:scale-[0.98]" type="submit">
-                  <span className="material-symbols-outlined text-[18px]">check</span>
-                  <span>Lưu</span>
+              )}
+
+              {/* Cảnh báo khi vô hiệu hóa bài học */}
+              {editingLesson?.status === 'Active' &&
+                formData.status === 'Inactive' && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 text-amber-800 text-xs border border-amber-200">
+                    <span className="material-symbols-outlined text-[18px] shrink-0">
+                      info
+                    </span>
+
+                    <span>
+                      Khi chuyển sang trạng thái không hoạt động,
+                      bài học này sẽ không còn hiển thị cho học viên.
+                      Nếu đây là bài học hoạt động cuối cùng của khóa học
+                      đã xuất bản, hệ thống có thể không cho phép lưu.
+                    </span>
+                  </div>
+                )}
+
+              {/* Nút lưu và hủy */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm disabled:opacity-60"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {editingLesson ? 'check' : 'save'}
+                  </span>
+
+                  {saving
+                    ? 'Đang lưu...'
+                    : editingLesson
+                      ? 'Lưu thay đổi'
+                      : 'Lưu bài học'}
                 </button>
               </div>
             </form>

@@ -74,10 +74,10 @@ function App() {
           <Route path="courses" element={<TeacherCourses />} />
           <Route path="courses/:courseId" element={<CourseDetailInstructor />} />
           <Route path="courses/:courseId/chapters" element={<ManageChapters />} />
-          <Route path="courses/1/chapters/1" element={<ManageLessons />} />
-          <Route path="courses/1/chapters/1/lessons/1" element={<ManageLessonContent />} />
-          <Route path="courses/1/chapters/1/lessons/1/quiz" element={<QuizEditor />} />
-          <Route path="courses/1/students" element={<StudentList />} />
+          <Route path="courses/:courseId/chapters/:chapterId" element={<ManageLessons />} />
+          <Route path="courses/:courseId/chapters/:chapterId/lessons/:lessonId" element={<ManageLessonContent />} />
+          <Route path="courses/:courseId/chapters/:chapterId/lessons/:lessonId/quiz" element={<QuizEditor />} />
+          <Route path="courses/:courseId/students" element={<StudentList />} />
           <Route path="drafts" element={<DraftManagement />} />
           <Route path="reports" element={<InstructorReports />} />
         </Route>
@@ -85,7 +85,13 @@ function App() {
 
         /* ================= PHÂN HỆ ADMIN  ================= */
         <Route path="/admin" element={<AdminLayout />}>
-          
+          {/* <Route index element={<AdminDashboard />} />
+          <Route path="accounts" element={<ManageAccounts />} />
+          <Route path="roles" element={<ManageRoles />} />
+          <Route path="categories" element={<ManageCategories />} />
+          <Route path="courses" element={<ManageCourses />} />
+          <Route path="payments" element={<ManagePayments />} />
+          <Route path="reports" element={<AdminReports />} /> */}
 
         </Route>
 

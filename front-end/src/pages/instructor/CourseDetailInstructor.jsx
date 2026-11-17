@@ -175,7 +175,8 @@ const CourseDetailInstructor = () => {
   }
 
   const status = getStatus(course.status);
-  const chapters = course.chapters || [];
+  // Sắp xếp chương theo orderNum tăng dần
+const chapters = [...(course.chapters || [])].sort((a, b) => a.orderNum - b.orderNum);
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto pt-6 pb-12">
@@ -413,7 +414,7 @@ const CourseDetailInstructor = () => {
             ))
           ) : (
             <div className="py-10 text-center text-sm text-gray-500">
-              Chưa có dữ liệu chương học từ Backend.
+              Khóa học này chưa có chương học.
             </div>
           )}
 
