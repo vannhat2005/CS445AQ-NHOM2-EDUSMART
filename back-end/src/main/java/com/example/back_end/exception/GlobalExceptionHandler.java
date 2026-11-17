@@ -17,41 +17,10 @@ public class GlobalExceptionHandler {
     // ==========================================
 
     @ExceptionHandler(AppException.class)
-    public ResponseEntity<ApiResponse<Void>> handlingAppException(AppException exception) {
+    public ResponseEntity<ApiResponse<Void>> handlingAppException(
+            AppException exception) {
+
         ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
-                .code(errorCode.getCode())
-                .message(errorCode.getMessage())
-                .build();
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
-    }
-
-    // ==========================================
-    // 2. BẮT LỖI VALIDATION TỪ DTO
-    // ==========================================
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handlingValidation(MethodArgumentNotValidException exception) {
-
-        // Lấy mã lỗi từ thông báo validation của DTO
-        String enumKey = exception.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .findFirst()
-                .map(error -> error.getDefaultMessage())
-                .orElse(null);
-
-        // Mặc định sử dụng lỗi VALIDATION_ERROR
-        ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
-
-        // Chuyển mã lỗi String thành ErrorCode tương ứng
-        if (enumKey != null) {
-            try {
-                errorCode = ErrorCode.valueOf(enumKey);
-            } catch (IllegalArgumentException e) {
-                log.warn("Không tìm thấy ErrorCode: {}", enumKey);
-            }
-        }
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .code(errorCode.getCode())
@@ -64,13 +33,45 @@ public class GlobalExceptionHandler {
     }
 
     // ==========================================
+    // 2. BẮT LỖI VALIDATION TỪ DTO
+    // ==========================================
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handlingValidation(
+            MethodArgumentNotValidException exception) {
+
+        ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
+
+        // Lấy message trực tiếp từ annotation trong DTO
+        // Ví dụ:
+        // @NotBlank(message = "Tên bài học không được để trống")
+        // @Size(max = 255, message = "Tên bài học không được vượt quá 255 ký tự")
+        String message = exception.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(error -> error.getDefaultMessage())
+                .orElse(errorCode.getMessage());
+
+        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
+                .code(errorCode.getCode())
+                .message(message)
+                .build();
+
+        return ResponseEntity
+                .status(errorCode.getStatusCode())
+                .body(apiResponse);
+    }
+
+    // ==========================================
     // 3. BẮT CÁC LỖI HỆ THỐNG KHÔNG XÁC ĐỊNH
     // ==========================================
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handlingUncategorizedException(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handlingUncategorizedException(
+            Exception exception) {
 
-        // Ghi chi tiết lỗi vào Console để lập trình viên kiểm tra
+        // Ghi chi tiết lỗi vào Console để kiểm tra
         log.error("Lỗi hệ thống không xác định: ", exception);
 
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;

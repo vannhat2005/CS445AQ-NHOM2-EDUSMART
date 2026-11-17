@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LessonRepository
@@ -31,4 +32,18 @@ public interface LessonRepository
     List<Lesson> findByChapter_ChapterIdOrderByOrderNumAsc(
             Integer chapterId
     );
+    // Lấy danh sách bài học trong một chương
+    List<Lesson> findByChapter_ChapterId(Integer chapterId);
+
+    // Lấy danh sách bài học theo thứ tự tăng dần, dùng cho GET và di chuyển bài học
+    List<Lesson> findByChapter_ChapterIdOrderByOrderNumAscLessonIdAsc(Integer chapterId);
+
+    // Lấy bài học có thứ tự lớn nhất để xác định orderNum cho bài học mới
+    Optional<Lesson> findFirstByChapter_ChapterIdOrderByOrderNumDescLessonIdDesc(Integer chapterId);
+
+    // Tìm bài học theo ID và kiểm tra bài học thuộc đúng chương
+    Optional<Lesson> findByLessonIdAndChapter_ChapterId(Integer lessonId, Integer chapterId);
+
+    // Đếm số bài học theo trạng thái trong toàn bộ khóa học
+    long countByChapter_Course_CourseIdAndStatus(Integer courseId, GeneralStatus status);
 }

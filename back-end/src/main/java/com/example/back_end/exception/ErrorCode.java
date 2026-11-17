@@ -39,7 +39,7 @@ public enum ErrorCode {
     COURSE_NOT_FOUND(2001, "Không tìm thấy khóa học hoặc khóa học không thuộc giảng viên này", HttpStatus.NOT_FOUND),
     COURSE_NOT_DRAFT(2002, "Chỉ khóa học ở trạng thái Draft mới được xuất bản", HttpStatus.CONFLICT),
     COURSE_NO_ACTIVE_CHAPTER(2003, "Khóa học phải có ít nhất một chương hoạt động", HttpStatus.BAD_REQUEST),
-
+    
     // TODO: Bổ sung lỗi tạo, sửa, xóa, ẩn và quản lý khóa học
 
 
@@ -47,9 +47,13 @@ public enum ErrorCode {
     // 4. MODULE CHAPTER - QUẢN LÝ CHƯƠNG
     // (2100 - 2199)
     // ==========================================
-
+    CHAPTER_NOT_FOUND(2100, "Không tìm thấy chương hoặc chương không thuộc khóa học này", HttpStatus.NOT_FOUND),
     CHAPTER_NO_ACTIVE_LESSON(2101, "Chương chưa có bài học hoạt động", HttpStatus.BAD_REQUEST),
-
+    COURSE_MUST_HAVE_ACTIVE_CHAPTER(
+            2103,
+            "Không thể vô hiệu hóa chương học cuối cùng đang hoạt động. Khóa học đã xuất bản phải có ít nhất một chương hoạt động.",
+            HttpStatus.BAD_REQUEST
+    ),
     // TODO: Bổ sung lỗi thêm, sửa, xóa và thay đổi trạng thái chương
 
 
@@ -60,7 +64,10 @@ public enum ErrorCode {
 
     LESSON_NO_VALID_ACTIVE_CONTENT(2201, "Bài học phải có ít nhất một nội dung bài học hoạt động", HttpStatus.BAD_REQUEST),
     LESSON_HAS_INVALID_ACTIVE_CONTENT(2202, "Bài học có nội dung hoạt động chưa hợp lệ", HttpStatus.BAD_REQUEST),
-
+    LESSON_NOT_FOUND(2203, "Không tìm thấy bài học trong chương này.", HttpStatus.NOT_FOUND),
+    LESSON_CHAPTER_INACTIVE(2204, "Không thể kích hoạt bài học vì chương học đang không hoạt động.", HttpStatus.BAD_REQUEST),
+    LESSON_LAST_ACTIVE(2205, "Không thể vô hiệu hóa bài học cuối cùng đang hoạt động của khóa học đã xuất bản.", HttpStatus.BAD_REQUEST),
+    LESSON_MOVE_INVALID(2206, "Không thể di chuyển bài học vượt quá vị trí đầu hoặc cuối.", HttpStatus.BAD_REQUEST),
     // TODO: Bổ sung lỗi thêm, sửa, xóa và thay đổi trạng thái bài học
 
 
