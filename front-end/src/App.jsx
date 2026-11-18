@@ -220,7 +220,7 @@ function AppRoutes() {
           element={<StudentCourseDetailRoute />}
         />
         {/* Khóa học của tôi - yêu cầu đăng nhập STUDENT */}
-        <Route element={<ProtectedRoute allowedRoles={["STUDENT"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Student"]} />}>
           <Route
             path="my-courses"
             element={<MyCourses />}
