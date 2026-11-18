@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import CourseCard from "../../components/student/CourseCard.jsx";
-import { getCourses } from "../../services/student/courseService.js";
+import { getCourses, getTopCategories } from "../../services/student/courseService.js";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { getSearchResults } from "../../services/student/courseSearchService.js";
 
@@ -26,6 +26,13 @@ export default function HomeContent() {
     if (keyword) navigate(`/student/search?keyword=${encodeURIComponent(keyword)}`);
   };
   const [sort, setSort] = useState("newest");
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [topCategories, setTopCategories] = useState([]);
+  const [categoriesError, setCategoriesError] = useState("");
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [homePage, setHomePage] = useState(1);
+  const [homeTotalPages, setHomeTotalPages] = useState(1);
+  const [homeTotalElements, setHomeTotalElements] = useState(0);
   const [search, setSearch] = useState(keyword);
 
   useEffect(() => { setSearch(keyword); }, [keyword]);
@@ -57,34 +64,84 @@ export default function HomeContent() {
   const goToPage = (nextPage) => {
     if (searchLoading || nextPage < 1 || nextPage > totalPages || nextPage === page) return;
     setParams({ keyword, page: String(nextPage) });
-    document.getElementById("courses")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("courses")?.scrollIntoView({ behavior: "instant", block: "start" });
   };
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadCourses() {
-      try {
-        setLoading(true);
-        setError("");
-        const response = await getCourses(1, 4);
-        const data = response?.result?.content;
-        if (!Array.isArray(data)) {
-          throw new Error("API không trả về result.content dạng mảng");
+    if (isSearchPage) return;
+    const controller = new AbortController();
+    setCategoriesLoading(true);
+    setCategoriesError("");
+
+    getTopCategories(controller.signal)
+      .then((categories) => {
+        if (controller.signal.aborted) return;
+        setTopCategories(categories);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted || err.name === "AbortError") return;
+        console.error("Lỗi tải danh mục:", err);
+        setTopCategories([]);
+        setCategoriesError(err.message || "Không thể tải danh mục.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCategoriesLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [isSearchPage]);
+
+  useEffect(() => {
+    if (isSearchPage) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    getCourses({
+      categoryId: selectedCategoryId,
+      sort,
+      page: homePage,
+      size: 4,
+      signal: controller.signal,
+    })
+      .then(({ result }) => {
+        if (controller.signal.aborted) return;
+        setCourses(result.content);
+        setHomeTotalPages(Math.max(1, Number(result.totalPages) || 1));
+        setHomeTotalElements(Number(result.totalElements) || 0);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted && err.name !== "AbortError") {
+          console.error("Lỗi tải khóa học:", err);
+          setError(err.message || "Không thể tải danh sách khóa học.");
+          setCourses([]);
+          setHomeTotalPages(1);
+          setHomeTotalElements(0);
         }
-        if (!cancelled) setCourses(data);
-      } catch (err) {
-        console.error("Lỗi tải khóa học:", err);
-        if (!cancelled) setError("Không thể tải danh sách khóa học.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    loadCourses();
-    return () => { cancelled = true; };
-  }, []);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [isSearchPage, selectedCategoryId, sort, homePage]);
+
+  const selectCategory = (categoryId) => {
+    setSelectedCategoryId(categoryId);
+    setHomePage(1);
+  };
+
+  const changeHomeSort = (nextSort) => {
+    setSort(nextSort);
+    setHomePage(1);
+  };
+
+  const goToHomePage = (nextPage) => {
+    if (loading || nextPage < 1 || nextPage > homeTotalPages || nextPage === homePage) return;
+    setHomePage(nextPage);
+    document.getElementById("courses")?.scrollIntoView({ behavior: "instant", block: "start" });
+  };
 
   useEffect(() => {
     const links = [
@@ -112,8 +169,6 @@ export default function HomeContent() {
   }, []);
 
   const handleClick = (event) => {
-    const sortButton = event.target.closest("[data-sort]");
-    if (sortButton) setSort(sortButton.dataset.sort);
     const trend = event.target.closest("[data-trend]");
     if (trend) {
       const keyword = trend.dataset.trend;
@@ -122,14 +177,6 @@ export default function HomeContent() {
     }
   };
 
-  // FeaturedCourseResponse chưa có categoryCode nên tạm khóa các nút lọc danh mục.
-  // Tìm kiếm toàn bộ khóa học thực hiện tại trang SearchResults qua backend.
-  const filteredCourses = [...courses]
-    .sort((a, b) => {
-      if (sort === "price-asc") return Number(a.price ?? 0) - Number(b.price ?? 0);
-      if (sort === "price-desc") return Number(b.price ?? 0) - Number(a.price ?? 0);
-      return 0;
-    });
   return (
     <>
       <main onClick={handleClick} className="w-full pt-20 bg-background flex-1"><div className="flex flex-col w-full">
@@ -372,55 +419,103 @@ export default function HomeContent() {
             {!isSearchPage && (<>
             {/* Filter Tabs & Sort Controls Bar */}
             <div className="bg-surface-container-lowest p-space-sm rounded-2xl shadow-sm mb-space-xl flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
-              {/* Category Filter Tabs */}
+              {/* Category Filter Tabs - dữ liệu thật từ backend */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0" id="filter-tab-container">
-                <button className="course-filter-tab px-5 py-2.5 rounded-xl font-title-sm text-title-sm bg-primary text-on-primary transition-all shadow-sm flex-shrink-0 cursor-pointer" data-category="all" type="button">
-                  Tất cả
-                </button>
-                <button className="course-filter-tab px-5 py-2.5 rounded-xl font-title-sm text-title-sm bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all flex-shrink-0 cursor-pointer" data-category="tech" type="button" disabled title="Cần bổ sung categoryCode vào API để lọc danh mục">
-                  Công nghệ
-                </button>
-                <button className="course-filter-tab px-5 py-2.5 rounded-xl font-title-sm text-title-sm bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all flex-shrink-0 cursor-pointer" data-category="design" type="button" disabled title="Cần bổ sung categoryCode vào API để lọc danh mục">
-                  Thiết kế
-                </button>
-                <button className="course-filter-tab px-5 py-2.5 rounded-xl font-title-sm text-title-sm bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all flex-shrink-0 cursor-pointer" data-category="language" type="button" disabled title="Cần bổ sung categoryCode vào API để lọc danh mục">
-                  Ngoại ngữ
-                </button>
+                {[{ categoryId: null, name: "Tất cả" }, ...topCategories].map((category) => {
+                  const active = selectedCategoryId === category.categoryId;
+                  return (
+                    <button
+                      key={category.categoryId ?? "all"}
+                      type="button"
+                      onClick={() => selectCategory(category.categoryId)}
+                      aria-pressed={active}
+                      className={`course-filter-tab px-5 py-2.5 rounded-xl font-title-sm text-title-sm transition-all flex-shrink-0 cursor-pointer ${active
+                        ? "bg-primary text-on-primary shadow-sm"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+                    >
+                      {category.name}
+                    </button>
+                  );
+                })}
+                {categoriesLoading && (
+                  <span className="text-sm text-slate-500" role="status">Đang tải danh mục...</span>
+                )}
+                {categoriesError && (
+                  <span className="text-red-600 text-sm" role="alert">{categoriesError}</span>
+                )}
               </div>
-              {/* Sorting Pills */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Sorting Pills - sắp xếp tại backend */}
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                 <span className="font-label-md text-label-md text-outline font-semibold hidden sm:inline">Sắp xếp:</span>
-                <button className="sort-btn px-3.5 py-2 rounded-xl text-on-surface font-label-md text-label-md bg-surface-container-high font-bold transition-colors cursor-pointer" data-sort="newest" type="button">
-                  Mới nhất
-                </button>
-                <button className="sort-btn px-3.5 py-2 rounded-xl text-on-surface-variant hover:text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors cursor-pointer" data-sort="price-asc" type="button">
-                  Giá thấp đến cao
-                </button>
-                <button className="sort-btn px-3.5 py-2 rounded-xl text-on-surface-variant hover:text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors cursor-pointer" data-sort="price-desc" type="button">
-                  Giá cao đến thấp
-                </button>
+                {[
+                  { value: "newest", label: "Mới nhất" },
+                  { value: "price_asc", label: "Giá thấp đến cao" },
+                  { value: "price_desc", label: "Giá cao đến thấp" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => changeHomeSort(option.value)}
+                    aria-pressed={sort === option.value}
+                    className={`sort-btn px-3.5 py-2 rounded-xl font-label-md text-label-md font-bold transition-colors cursor-pointer ${sort === option.value
+                      ? "bg-surface-container-high text-on-surface"
+                      : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
             </>)}
-            {/* Danh sách khóa học từ API */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter" id="courses">
-              {(isSearchPage ? searchLoading : loading) ? (
-                <p className="col-span-full text-on-surface-variant">Đang tải khóa học...</p>
-              ) : (isSearchPage ? searchError : error) ? (
-                <p className="col-span-full text-red-600">{isSearchPage ? searchError : error}</p>
-              ) : (isSearchPage ? searchCourses : filteredCourses).length === 0 ? (
-                <p className="col-span-full text-on-surface-variant">Chưa có khóa học phù hợp.</p>
-              ) : (
-                (isSearchPage ? searchCourses : filteredCourses).map((course, index) => (
-                  <CourseCard key={course.courseId ?? course.id ?? index} course={course} />
-                ))
+            {/* Khung gọn khoảng một hàng; trang chủ lấy 4 khóa học mỗi trang. */}
+            <div
+              id="courses"
+              className="relative min-h-[340px] scroll-mt-24"
+              aria-busy={isSearchPage ? searchLoading : loading}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter content-start">
+                {(isSearchPage ? searchError : error) ? (
+                  <p className="col-span-full text-red-600" role="alert">
+                    {isSearchPage ? searchError : error}
+                  </p>
+                ) : (isSearchPage ? searchCourses : courses).length === 0 ? (
+                  <p className="col-span-full text-on-surface-variant">
+                    {(isSearchPage ? searchLoading : loading)
+                      ? "Đang tải khóa học..."
+                      : "Chưa có khóa học phù hợp."}
+                  </p>
+                ) : (
+                  (isSearchPage ? searchCourses : courses).map((course, index) => (
+                    <CourseCard key={course.courseId ?? course.id ?? index} course={course} />
+                  ))
+                )}
+              </div>
+              {(isSearchPage ? searchLoading : loading) && (
+                <div
+                  className="absolute inset-0 z-10 flex items-start justify-center pt-10 rounded-xl bg-white/40 backdrop-blur-[1px]"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="flex items-center gap-2 rounded-xl bg-white px-5 py-3 shadow-lg border border-slate-200 text-slate-800 font-semibold">
+                    <span className="inline-block w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                    Đang cập nhật khóa học...
+                  </div>
+                </div>
               )}
             </div>
-            {isSearchPage && !searchLoading && !searchError && totalElements > 0 && (
+            {/* Không tháo phân trang khi loading: tránh thay đổi chiều cao trang. */}
+            {isSearchPage && !searchError && totalElements > 0 && (
               <SearchPagination
                 page={page}
                 totalPages={totalPages}
                 onPageChange={goToPage}
+              />
+            )}
+            {!isSearchPage && !error && homeTotalElements > 0 && (
+              <SearchPagination
+                page={homePage}
+                totalPages={homeTotalPages}
+                onPageChange={goToHomePage}
               />
             )}
           </div>
