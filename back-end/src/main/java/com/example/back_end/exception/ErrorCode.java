@@ -20,6 +20,12 @@ public enum ErrorCode {
     // (1000 - 1099)
     // ==========================================
 
+    ROLE_USER_NOT_FOUND(1101, "Không tìm thấy người dùng", HttpStatus.NOT_FOUND),
+    ROLE_NOT_FOUND(1102, "Vai trò không hợp lệ", HttpStatus.BAD_REQUEST),
+    ROLE_NO_CHANGES(1103, "Không có thay đổi nào để lưu", HttpStatus.BAD_REQUEST),
+    ROLE_INVALID_DATA(1104, "Dữ liệu phân quyền không hợp lệ", HttpStatus.BAD_REQUEST),
+    ROLE_SELF_DEMOTION(1105, "Không thể tự gỡ quyền Admin của tài khoản đang đăng nhập", HttpStatus.FORBIDDEN),
+
     // TODO: Bổ sung lỗi đăng ký, đăng nhập và quản lý người dùng
 
 

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import LogoutModal from '../common/LogoutModal';
 
 const API_URL = "/api/courses/search";
 
