@@ -2,20 +2,55 @@
 import axios from "axios";
 
 // ========================================
-// 1. ACCESS TOKEN - LƯU TRONG RAM
+// 1. CẤU HÌNH API
 // ========================================
 
-let accessToken = null;
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:8080"
+).replace(/\/+$/, "");
+
+// ========================================
+// 2. ACCESS TOKEN - LOCAL STORAGE
+// ========================================
+
+const TOKEN_KEY = "accessToken";
+
 let refreshPromise = null;
 
+// Lưu Access Token
+export const setAccessToken = (token) => {
+  const cleanToken = token
+    ? String(token).replace(/^Bearer\s+/i, "").trim()
+    : "";
+
+  if (cleanToken) {
+    localStorage.setItem(TOKEN_KEY, cleanToken);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+};
+
+// Lấy Access Token
+export const getAccessToken = () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  return token
+    ? token.replace(/^Bearer\s+/i, "").trim()
+    : null;
+};
+
+// Xóa Access Token
+export const clearAccessToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+};
+
 // ========================================
-// 2. AXIOS INSTANCE
+// 3. AXIOS INSTANCE
 // ========================================
 
 const api = axios.create({
-  baseURL: `${
-    import.meta.env.VITE_API_URL || "http://localhost:8080"
-  }/api`,
+  baseURL: `${API_BASE_URL}/api`,
 
   withCredentials: true,
 
@@ -27,23 +62,7 @@ const api = axios.create({
 });
 
 // ========================================
-// 3. ACCESS TOKEN FUNCTIONS
-// ========================================
-
-export const setAccessToken = (token) => {
-  accessToken = token || null;
-};
-
-export const getAccessToken = () => {
-  return accessToken;
-};
-
-export const clearAccessToken = () => {
-  accessToken = null;
-};
-
-// ========================================
-// 4. PUBLIC AUTH ENDPOINTS
+// 4. PUBLIC ENDPOINTS
 // ========================================
 
 const publicEndpoints = [
@@ -57,10 +76,13 @@ const getRequestPath = (url = "") => {
   try {
     const parsed = new URL(
       String(url),
-      api.defaults.baseURL
+      `${api.defaults.baseURL}/`
     );
 
-    return parsed.pathname.replace(/^\/api/, "");
+    return parsed.pathname.replace(
+      /^\/api(?=\/|$)/,
+      ""
+    );
   } catch {
     return String(url).split("?")[0];
   }
@@ -75,9 +97,6 @@ const isPublicEndpoint = (url = "") => {
 // ========================================
 // 5. REFRESH ACCESS TOKEN
 // ========================================
-
-// Chỉ tạo một request refresh khi nhiều API
-// cùng cần lấy lại Access Token.
 
 export const refreshAccessToken = async () => {
   if (refreshPromise) {
@@ -121,26 +140,26 @@ api.interceptors.request.use(
 
     const url = config.url || "";
 
-    // API công khai không gửi JWT
+    // API public không gửi JWT
     if (isPublicEndpoint(url)) {
       delete config.headers.Authorization;
       return config;
     }
 
-    // Nếu chưa có token trong RAM,
-    // thử khôi phục bằng Refresh Cookie.
-    if (!accessToken) {
+    let token = getAccessToken();
+
+    // Nếu chưa có token thì thử refresh
+    if (!token) {
       try {
-        await refreshAccessToken();
+        token = await refreshAccessToken();
       } catch {
-        // Không có refresh cookie hợp lệ.
-        // Backend sẽ quyết định quyền truy cập.
+        // Không có refresh cookie hợp lệ
       }
     }
 
-    if (accessToken) {
+    if (token) {
       config.headers.Authorization =
-        `Bearer ${accessToken}`;
+        `Bearer ${token}`;
     } else {
       delete config.headers.Authorization;
     }
@@ -153,7 +172,6 @@ api.interceptors.request.use(
 
 // ========================================
 // 7. RESPONSE INTERCEPTOR
-// AUTO REFRESH TOKEN KHI 401
 // ========================================
 
 api.interceptors.response.use(
@@ -174,7 +192,8 @@ api.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const newToken = await refreshAccessToken();
+      const newToken =
+        await refreshAccessToken();
 
       originalRequest.headers =
         originalRequest.headers || {};

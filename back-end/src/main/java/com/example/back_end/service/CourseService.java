@@ -1,42 +1,97 @@
+
 package com.example.back_end.service;
 
 import com.example.back_end.dto.request.CourseRequest;
 import com.example.back_end.dto.response.*;
 
-import java.util.List;
-
 public interface CourseService {
 
-    //////admin tạo khóa học
-    void createCourse(CourseRequest request, Integer instructorId);
+    // ==========================================
+    // ADMIN: TẠO KHÓA HỌC
+    // ==========================================
 
+    void createCourse(
+            CourseRequest request,
+            Integer instructorId
+    );
 
-    /////// giang vien (danh sachs khoa hoc )
-    PageResponse<CourseResponse> getAssignedCourses(Integer instructorId, int pageNo, int pageSize);
+    // ==========================================
+    // GIẢNG VIÊN: DANH SÁCH KHÓA HỌC
+    // ==========================================
 
-    //Xem chi tiết khóa học được phân công
-    CourseResponse getAssignedCourseDetail(Integer courseId, Integer instructorId);
+    PageResponse<CourseResponse> getAssignedCourses(
+            Integer instructorId,
+            int pageNo,
+            int pageSize
+    );
 
-    ////// hoc sinh
+    // ==========================================
+    // GIẢNG VIÊN: CHI TIẾT KHÓA HỌC
+    // ==========================================
+
+    CourseResponse getAssignedCourseDetail(
+            Integer courseId,
+            Integer instructorId
+    );
+
+    // ==========================================
+    // GIẢNG VIÊN: XUẤT BẢN KHÓA HỌC
+    // ==========================================
+
+    void publishCourse(
+            Integer courseId,
+            Integer instructorId
+    );
+
+    // ==========================================
+    // HỌC VIÊN: TÌM KIẾM KHÓA HỌC
+    // ==========================================
+
     PageResponse<CourseSearchResponse> searchCourses(
             String keyword,
             int pageNo,
             int pageSize
     );
 
+    // ==========================================
+    // HỌC VIÊN: KHÓA HỌC NỔI BẬT
+    // ==========================================
 
-    void publishCourse(Integer courseId, Integer instructorId);
-
-    // lấy danh sách khóa học nổi bật của sinh viên
     PageResponse<FeaturedCourseResponse> getFeaturedCourses(
             int pageNo,
             int pageSize
     );
 
-    // Học viên xem chi tiết khóa học đã xuất bản
-    CourseDetailResponse getCourseDetail(Integer courseId);
+    // ==========================================
+    // HỌC VIÊN: CHI TIẾT KHÓA HỌC
+    // ==========================================
+    //
+    // courseId: ID khóa học
+    // userId: ID học viên đang đăng nhập
+    //
+    // userId = null nếu khách chưa đăng nhập
+    //
+    // Dùng để kiểm tra:
+    // - Đã mua khóa học chưa
+    // - Có được phép đánh giá không
+    // ==========================================
 
-    CourseCurriculumResponse getCourseCurriculum(Integer courseId);
+    CourseDetailResponse getCourseDetail(
+            Integer courseId,
+            Integer userId
+    );
+
+    // ==========================================
+    // HỌC VIÊN: CHƯƠNG TRÌNH HỌC
+    // ==========================================
+
+    CourseCurriculumResponse getCourseCurriculum(
+            Integer courseId
+    );
+
+    // ==========================================
+    // HỌC VIÊN: DANH SÁCH ĐÁNH GIÁ
+    // ==========================================
 
     CourseReviewsResponse getCourseReviews(
             Integer courseId,

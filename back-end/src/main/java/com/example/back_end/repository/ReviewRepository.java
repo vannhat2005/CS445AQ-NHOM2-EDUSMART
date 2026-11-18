@@ -41,4 +41,9 @@ public interface ReviewRepository
             @Param("courseId") Integer courseId
     );
 
+    boolean existsByStudent_UserIdAndCourse_CourseId(
+            Integer studentId,
+            Integer courseId
+    );
+
 }

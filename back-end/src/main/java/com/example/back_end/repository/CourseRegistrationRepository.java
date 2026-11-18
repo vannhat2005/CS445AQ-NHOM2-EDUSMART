@@ -20,7 +20,7 @@ public interface CourseRegistrationRepository
         extends JpaRepository<CourseRegistration, Integer> {
 
     // ==========================================
-    // ĐẾM HỌC VIÊN CỦA GIẢNG VIÊN
+    // 1. ĐẾM HỌC VIÊN CỦA GIẢNG VIÊN
     // ==========================================
 
     @Query("""
@@ -33,7 +33,7 @@ public interface CourseRegistrationRepository
     );
 
     // ==========================================
-    // ĐẾM HỌC VIÊN CỦA KHÓA HỌC
+    // 2. ĐẾM HỌC VIÊN CỦA KHÓA HỌC
     // ==========================================
 
     @Query("""
@@ -46,7 +46,7 @@ public interface CourseRegistrationRepository
     );
 
     // ==========================================
-    // ĐẾM ĐĂNG KÝ THEO TRẠNG THÁI
+    // 3. ĐẾM ĐĂNG KÝ THEO TRẠNG THÁI
     // ==========================================
 
     long countByCourse_CourseIdAndStatus(
@@ -55,7 +55,15 @@ public interface CourseRegistrationRepository
     );
 
     // ==========================================
-    // KIỂM TRA HỌC VIÊN ĐÃ ĐĂNG KÝ
+    // 4. KIỂM TRA HỌC VIÊN ĐÃ MUA KHÓA HỌC
+    // ==========================================
+    //
+    // Chỉ trả về true khi:
+    // - Đúng userId
+    // - Đúng courseId
+    // - Trạng thái Paid
+    //
+    // Sử dụng trong CourseServiceImpl
     // ==========================================
 
     boolean existsByUser_UserIdAndCourse_CourseIdAndStatus(
@@ -65,25 +73,68 @@ public interface CourseRegistrationRepository
     );
 
     // ==========================================
-    // API CŨ: KHÓA HỌC CỦA TÔI
+    // 5. KIỂM TRA ĐÃ MUA KHÓA HỌC
+    // ==========================================
+    //
+    // Phương thức tiện ích.
+    // Không cần truyền RegistrationStatus.Paid
+    // mỗi lần gọi.
+    // ==========================================
+
+    default boolean hasPurchasedCourse(
+            Integer userId,
+            Integer courseId
+    ) {
+        if (userId == null || courseId == null) {
+            return false;
+        }
+
+        return existsByUser_UserIdAndCourse_CourseIdAndStatus(
+                userId,
+                courseId,
+                RegistrationStatus.Paid
+        );
+    }
+
+    // ==========================================
+    // 6. ĐẾM SỐ HỌC VIÊN ĐÃ THANH TOÁN
+    // ==========================================
+    //
+    // Chỉ tính đăng ký trạng thái Paid.
+    // Đếm học viên duy nhất, tránh trùng lặp.
+    // ==========================================
+
+    @Query("""
+        SELECT COUNT(DISTINCT cr.user.userId)
+        FROM CourseRegistration cr
+        WHERE cr.course.courseId = :courseId
+          AND cr.status = :status
+    """)
+    long countDistinctPaidStudentsByCourse(
+            @Param("courseId") Integer courseId,
+            @Param("status") RegistrationStatus status
+    );
+
+    // ==========================================
+    // 7. API CŨ: KHÓA HỌC CỦA TÔI
     // ==========================================
 
     @Query(
             value = """
-            SELECT cr
-            FROM CourseRegistration cr
-            JOIN FETCH cr.course c
-            LEFT JOIN FETCH c.instructor
-            LEFT JOIN FETCH c.category
-            WHERE cr.user.userId = :userId
-              AND cr.status = :status
-        """,
+                SELECT cr
+                FROM CourseRegistration cr
+                JOIN FETCH cr.course c
+                LEFT JOIN FETCH c.instructor
+                LEFT JOIN FETCH c.category
+                WHERE cr.user.userId = :userId
+                  AND cr.status = :status
+            """,
             countQuery = """
-            SELECT COUNT(cr)
-            FROM CourseRegistration cr
-            WHERE cr.user.userId = :userId
-              AND cr.status = :status
-        """
+                SELECT COUNT(cr)
+                FROM CourseRegistration cr
+                WHERE cr.user.userId = :userId
+                  AND cr.status = :status
+            """
     )
     Page<CourseRegistration> findMyCourses(
             @Param("userId") Integer userId,
@@ -92,48 +143,56 @@ public interface CourseRegistrationRepository
     );
 
     // ==========================================
-    // API MỚI: TÌM KIẾM + LỌC + PHÂN TRANG
+    // 8. API MỚI: TÌM KIẾM + LỌC + PHÂN TRANG
+    // ==========================================
+    //
+    // Hỗ trợ:
+    // - Lọc theo học viên
+    // - Lọc trạng thái đăng ký
+    // - Tìm kiếm tên khóa học
+    // - Lọc theo ngày đăng ký
+    // - Phân trang
     // ==========================================
 
     @Query(
             value = """
-            SELECT cr
-            FROM CourseRegistration cr
-            JOIN FETCH cr.course c
-            LEFT JOIN FETCH c.instructor
-            LEFT JOIN FETCH c.category
-            WHERE cr.user.userId = :userId
-              AND cr.status = :status
+                SELECT cr
+                FROM CourseRegistration cr
+                JOIN FETCH cr.course c
+                LEFT JOIN FETCH c.instructor
+                LEFT JOIN FETCH c.category
+                WHERE cr.user.userId = :userId
+                  AND cr.status = :status
 
-              AND (
-                  :keyword IS NULL
-                  OR LOWER(c.title) LIKE
-                     LOWER(CONCAT('%', :keyword, '%'))
-              )
+                  AND (
+                      :keyword IS NULL
+                      OR LOWER(c.title) LIKE
+                         LOWER(CONCAT('%', :keyword, '%'))
+                  )
 
-              AND (
-                  :fromDate IS NULL
-                  OR cr.createdAt >= :fromDate
-              )
-        """,
+                  AND (
+                      :fromDate IS NULL
+                      OR cr.createdAt >= :fromDate
+                  )
+            """,
             countQuery = """
-            SELECT COUNT(cr)
-            FROM CourseRegistration cr
-            JOIN cr.course c
-            WHERE cr.user.userId = :userId
-              AND cr.status = :status
+                SELECT COUNT(cr)
+                FROM CourseRegistration cr
+                JOIN cr.course c
+                WHERE cr.user.userId = :userId
+                  AND cr.status = :status
 
-              AND (
-                  :keyword IS NULL
-                  OR LOWER(c.title) LIKE
-                     LOWER(CONCAT('%', :keyword, '%'))
-              )
+                  AND (
+                      :keyword IS NULL
+                      OR LOWER(c.title) LIKE
+                         LOWER(CONCAT('%', :keyword, '%'))
+                  )
 
-              AND (
-                  :fromDate IS NULL
-                  OR cr.createdAt >= :fromDate
-              )
-        """
+                  AND (
+                      :fromDate IS NULL
+                      OR cr.createdAt >= :fromDate
+                  )
+            """
     )
     Page<CourseRegistration> findMyCoursesFiltered(
             @Param("userId") Integer userId,
@@ -142,5 +201,4 @@ public interface CourseRegistrationRepository
             @Param("fromDate") LocalDateTime fromDate,
             Pageable pageable
     );
-
 }

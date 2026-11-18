@@ -1,13 +1,25 @@
+
 package com.example.back_end.controller;
 
 import com.example.back_end.dto.request.CourseRequest;
+import com.example.back_end.dto.request.CreateReviewRequest;
 import com.example.back_end.dto.response.*;
+
+import com.example.back_end.entity.User;
+import com.example.back_end.repository.UserRepository;
+
 import com.example.back_end.service.CourseService;
+import com.example.back_end.service.ReviewService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -15,92 +27,167 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final ReviewService reviewService;
+    private final UserRepository userRepository;
+
+    // ==========================================
+    // LẤY USER ID TỪ TÀI KHOẢN ĐÃ XÁC THỰC
+    // ==========================================
+    //
+    // JWT Filter xác thực token và lưu
+    // Authentication vào SecurityContext.
+    //
+    // Giả định authentication.getName()
+    // là email của người đăng nhập.
+    // ==========================================
 
 
-    /**
-     * API: Lấy danh sách khóa học được phân công (Dành cho Giảng viên)
-     * Method: GET
-     * URL: /api/courses/assigned/{instructorId}?pageNo=1&pageSize=10
-     */
-    @GetMapping("/assigned/{instructorId}")
-    public ApiResponse<PageResponse<CourseResponse>> getAssignedCourses(
-            @PathVariable Integer instructorId,
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        System.out.println(">>> ID GIẢNG VIÊN ĐANG GỌI API LÀ: " + instructorId);
-        // Gọi service lấy dữ liệu
-        PageResponse<CourseResponse> pageData = courseService.getAssignedCourses(instructorId, pageNo, pageSize);
+    private Integer getCurrentUserId() {
 
-        // Trả về ApiResponse trực tiếp không qua ResponseEntity
-        return ApiResponse.<PageResponse<CourseResponse>>builder()
-                .message("Lấy danh sách khóa học phân công thành công")
-                .result(pageData)
-                .build(); // Tự động lấy code = 1000 (Thành công)
+        Authentication authentication =
+                SecurityContextHolder.getContext()
+                        .getAuthentication();
+
+        // Chưa đăng nhập
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(
+                authentication.getPrincipal()
+        )) {
+            return null;
+        }
+
+        // Lấy username từ Authentication
+        // đã được JWT Filter xác thực
+        String username = authentication.getName();
+
+        // Tìm user theo username
+        User user = userRepository
+                .findByUsername(username)
+                .orElseThrow(() ->
+                        new AuthenticationCredentialsNotFoundException(
+                                "Không tìm thấy người dùng"
+                        )
+                );
+
+        // Trả về ID của người đang đăng nhập
+        return user.getUserId();
     }
 
-    // API: Giảng viên xem chi tiết khóa học được phân công
-    // Method: GET
-    // URL: /api/courses/assigned/{instructorId}/{courseId}
-    
-    @GetMapping("/assigned/{instructorId}/{courseId}")
-    public ApiResponse<CourseResponse> getAssignedCourseDetail(
+    // ==========================================
+    // GIẢNG VIÊN: DANH SÁCH KHÓA HỌC
+    // ==========================================
+    // GET /api/courses/assigned/{instructorId}
+
+    @GetMapping("/assigned/{instructorId}")
+    public ApiResponse<PageResponse<CourseResponse>>
+    getAssignedCourses(
             @PathVariable Integer instructorId,
-            @PathVariable Integer courseId) {
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "10") int pageSize
+    ) {
 
-        CourseResponse response = courseService.getAssignedCourseDetail(
-                courseId, instructorId
-        );
+        PageResponse<CourseResponse> pageData =
+                courseService.getAssignedCourses(
+                        instructorId,
+                        pageNo,
+                        pageSize
+                );
 
-        return ApiResponse.<CourseResponse>builder()
-                .message("Lấy chi tiết khóa học thành công")
+        return ApiResponse
+                .<PageResponse<CourseResponse>>builder()
+                .message(
+                        "Lấy danh sách khóa học phân công thành công"
+                )
+                .result(pageData)
+                .build();
+    }
+
+    // ==========================================
+    // GIẢNG VIÊN: CHI TIẾT KHÓA HỌC
+    // ==========================================
+    // GET /api/courses/assigned/{instructorId}/{courseId}
+
+    @GetMapping("/assigned/{instructorId}/{courseId}")
+    public ApiResponse<CourseResponse>
+    getAssignedCourseDetail(
+            @PathVariable Integer instructorId,
+            @PathVariable Integer courseId
+    ) {
+
+        CourseResponse response =
+                courseService.getAssignedCourseDetail(
+                        courseId,
+                        instructorId
+                );
+
+        return ApiResponse
+                .<CourseResponse>builder()
+                .message(
+                        "Lấy chi tiết khóa học thành công"
+                )
                 .result(response)
                 .build();
     }
 
-    /**
-     * API: Tạo mới khóa học
-     * Method: POST
-     * URL: /api/courses
-     */
+    // ==========================================
+    // ADMIN: TẠO KHÓA HỌC
+    // ==========================================
+    // POST /api/courses
+
     @PostMapping
-    public ApiResponse<Void> createCourse(@Valid @RequestBody CourseRequest request) {
+    public ApiResponse<Void> createCourse(
+            @Valid @RequestBody CourseRequest request
+    ) {
 
-        // Lấy instructorId từ request body để truyền vào service
-        courseService.createCourse(request, request.getInstructorId());
+        courseService.createCourse(
+                request,
+                request.getInstructorId()
+        );
 
-        // Trả về ApiResponse thành công, không có result (Void)
-        return ApiResponse.<Void>builder()
+        return ApiResponse
+                .<Void>builder()
                 .message("Tạo khóa học thành công")
-                .build(); // Tự động lấy code = 1000
+                .build();
     }
 
-    // =====================================================
-    // API: Giảng viên xuất bản khóa học
-    // Method: PUT
-    // URL: /api/courses/assigned/{instructorId}/{courseId}/publish
-    // =====================================================
+    // ==========================================
+    // GIẢNG VIÊN: XUẤT BẢN KHÓA HỌC
+    // ==========================================
+    // PUT /api/courses/assigned/{instructorId}/{courseId}/publish
 
-    @PutMapping("/assigned/{instructorId}/{courseId}/publish")
+    @PutMapping(
+            "/assigned/{instructorId}/{courseId}/publish"
+    )
     public ApiResponse<Void> publishCourse(
             @PathVariable Integer instructorId,
-            @PathVariable Integer courseId) {
+            @PathVariable Integer courseId
+    ) {
 
-        // Gọi Service kiểm tra điều kiện và xuất bản khóa học
-        courseService.publishCourse(courseId, instructorId);
+        courseService.publishCourse(
+                courseId,
+                instructorId
+        );
 
-        return ApiResponse.<Void>builder()
+        return ApiResponse
+                .<Void>builder()
                 .message("Xuất bản khóa học thành công")
                 .build();
     }
 
-
+    // ==========================================
+    // HỌC VIÊN: TÌM KIẾM KHÓA HỌC
+    // ==========================================
+    // GET /api/courses/search
 
     @GetMapping("/search")
-    public PageResponse<CourseSearchResponse> searchCourses(
+    public PageResponse<CourseSearchResponse>
+    searchCourses(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "8") int pageSize
     ) {
+
         return courseService.searchCourses(
                 keyword,
                 pageNo,
@@ -108,61 +195,107 @@ public class CourseController {
         );
     }
 
-
-    // API: Lấy danh sách khóa học nổi bật cho sinh viên
-    // Method: GET
-    // URL: /api/courses/featured?limit=4
+    // ==========================================
+    // HỌC VIÊN: KHÓA HỌC NỔI BẬT
+    // ==========================================
+    // GET /api/courses/featured
 
     @GetMapping("/featured")
-    public ApiResponse<PageResponse<FeaturedCourseResponse>> getFeaturedCourses(
+    public ApiResponse<PageResponse<FeaturedCourseResponse>>
+    getFeaturedCourses(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "8") int pageSize
     ) {
-        PageResponse<FeaturedCourseResponse> response =
-                courseService.getFeaturedCourses(pageNo, pageSize);
 
-        return ApiResponse.<PageResponse<FeaturedCourseResponse>>builder()
-                .message("Lấy danh sách khóa học thành công")
+        PageResponse<FeaturedCourseResponse> response =
+                courseService.getFeaturedCourses(
+                        pageNo,
+                        pageSize
+                );
+
+        return ApiResponse
+                .<PageResponse<FeaturedCourseResponse>>builder()
+                .message(
+                        "Lấy danh sách khóa học thành công"
+                )
                 .result(response)
                 .build();
     }
 
-
-
-    // API 1: Lấy thông tin chi tiết khóa học
+    // ==========================================
+    // HỌC VIÊN: CHI TIẾT KHÓA HỌC
+    // ==========================================
     // GET /api/courses/{courseId}/detail
+    //
+    // Tự lấy userId từ JWT đã xác thực.
+    // Chưa đăng nhập => userId = null.
+    // ==========================================
+
     @GetMapping("/{courseId}/detail")
-    public ApiResponse<CourseDetailResponse> getCourseDetail(
+    public ApiResponse<CourseDetailResponse>
+    getCourseDetail(
             @PathVariable Integer courseId
     ) {
-        return ApiResponse.<CourseDetailResponse>builder()
-                .message("Lấy thông tin chi tiết khóa học thành công")
-                .result(courseService.getCourseDetail(courseId))
+
+        Integer userId = getCurrentUserId();
+
+        CourseDetailResponse response =
+                courseService.getCourseDetail(
+                        courseId,
+                        userId
+                );
+
+        return ApiResponse
+                .<CourseDetailResponse>builder()
+                .message(
+                        "Lấy thông tin chi tiết khóa học thành công"
+                )
+                .result(response)
                 .build();
     }
 
-    // API 2: Lấy nội dung khóa học (Chapter + Lesson)
+    // ==========================================
+    // HỌC VIÊN: CHƯƠNG TRÌNH HỌC
+    // ==========================================
     // GET /api/courses/{courseId}/curriculum
+
     @GetMapping("/{courseId}/curriculum")
-    public ApiResponse<CourseCurriculumResponse> getCourseCurriculum(
+    public ApiResponse<CourseCurriculumResponse>
+    getCourseCurriculum(
             @PathVariable Integer courseId
     ) {
-        return ApiResponse.<CourseCurriculumResponse>builder()
-                .message("Lấy nội dung khóa học thành công")
-                .result(courseService.getCourseCurriculum(courseId))
+
+        return ApiResponse
+                .<CourseCurriculumResponse>builder()
+                .message(
+                        "Lấy nội dung khóa học thành công"
+                )
+                .result(
+                        courseService.getCourseCurriculum(
+                                courseId
+                        )
+                )
                 .build();
     }
 
-
+    // ==========================================
+    // DANH SÁCH ĐÁNH GIÁ KHÓA HỌC
+    // ==========================================
+    // GET /api/courses/{courseId}/reviews
 
     @GetMapping("/{courseId}/reviews")
-    public ApiResponse<CourseReviewsResponse> getCourseReviews(
+    public ApiResponse<CourseReviewsResponse>
+    getCourseReviews(
             @PathVariable Integer courseId,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "5") int pageSize
     ) {
-        return ApiResponse.<CourseReviewsResponse>builder()
-                .message("Lấy đánh giá khóa học thành công")
+
+        return ApiResponse
+                .<CourseReviewsResponse>builder()
+                .message(
+                        "Lấy đánh giá khóa học thành công"
+                )
                 .result(
                         courseService.getCourseReviews(
                                 courseId,
@@ -173,5 +306,43 @@ public class CourseController {
                 .build();
     }
 
+    // ==========================================
+    // HỌC VIÊN: GỬI ĐÁNH GIÁ KHÓA HỌC
+    // ==========================================
+    // POST /api/courses/{courseId}/reviews
+    //
+    // Chỉ cho phép:
+    // - Đã đăng nhập
+    // - Đã thanh toán (Paid)
+    // - Chưa đánh giá khóa học
+    // ==========================================
 
+    @PostMapping("/{courseId}/reviews")
+    public ApiResponse<Void> createReview(
+            @PathVariable Integer courseId,
+            @Valid @RequestBody CreateReviewRequest request
+    ) {
+
+        Integer userId = getCurrentUserId();
+
+        if (userId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Bạn cần đăng nhập để đánh giá"
+            );
+        }
+
+        reviewService.createReview(
+                courseId,
+                userId,
+                request
+        );
+
+        return ApiResponse
+                .<Void>builder()
+                .message(
+                        "Đánh giá khóa học thành công"
+                )
+                .build();
+    }
 }

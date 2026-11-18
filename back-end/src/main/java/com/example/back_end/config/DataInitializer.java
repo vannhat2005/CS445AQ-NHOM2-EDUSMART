@@ -78,6 +78,23 @@ public class DataInitializer {
 
                 userRepository.save(student);
             }
+            if (userRepository.findByUsername("student1").isEmpty()) {
+
+                User student = new User();
+
+                student.setUsername("student1");
+                student.setFullName("Học viên EduSmart");
+                student.setEmail("student1@edusmart.local");
+
+                student.setPasswordHash(
+                        passwordEncoder.encode("12345678")
+                );
+
+                student.setStatus(AccountStatus.Active);
+                student.setRole(studentRole);
+
+                userRepository.save(student);
+            }
         };
     }
 }
