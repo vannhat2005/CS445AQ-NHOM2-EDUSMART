@@ -2,11 +2,12 @@ package com.example.back_end.repository;
 
 import com.example.back_end.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public interface CategoryRepository extends JpaRepository<Category, Integer> {
 
-    // Ví dụ một hàm kiểm tra xem danh mục có tồn tại hay không
-    // boolean existsByName(String name);
+    // Kiểm tra tên danh mục đã tồn tại khi thêm mới
+    boolean existsByNameIgnoreCase(String name);
+
+    // Kiểm tra tên danh mục trùng với danh mục khác khi cập nhật
+    boolean existsByNameIgnoreCaseAndCategoryIdNot(String name, Integer categoryId);
 }

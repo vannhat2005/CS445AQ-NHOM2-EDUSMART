@@ -75,7 +75,10 @@ public enum ErrorCode {
     // 6. MODULE LESSON CONTENT - QUẢN LÝ NỘI DUNG BÀI HỌC
     // (2300 - 2399)
     // ==========================================
-
+    LESSON_CONTENT_PARENT_INACTIVE(2301,"Không thể kích hoạt nội dung vì bài học hoặc chương học đang không hoạt động.", HttpStatus.BAD_REQUEST),
+    LESSON_CONTENT_TEXT_REQUIRED(2302, "Nội dung văn bản không được để trống", HttpStatus.BAD_REQUEST),
+    LESSON_CONTENT_FILE_REQUIRED(2303, "Vui lòng chọn file PDF hoặc Video", HttpStatus.BAD_REQUEST),
+    LESSON_CONTENT_TYPE_INVALID(2304, "Loại nội dung không hợp lệ", HttpStatus.BAD_REQUEST),
     // TODO: Bổ sung lỗi thêm, sửa, xóa và quản lý nội dung bài học
 
 
@@ -83,7 +86,11 @@ public enum ErrorCode {
     // 7. MODULE CATEGORY - QUẢN LÝ DANH MỤC
     // (2400 - 2499)
     // ==========================================
+    // Không tìm thấy danh mục theo ID
+    CATEGORY_NOT_FOUND(2401, "Không tìm thấy danh mục khóa học", HttpStatus.NOT_FOUND),
 
+    // Tên danh mục đã được sử dụng
+    CATEGORY_NAME_EXISTS(2402, "Tên danh mục đã tồn tại", HttpStatus.CONFLICT),
     // TODO: Bổ sung lỗi thêm, sửa, xóa danh mục khóa học
 
 

@@ -18,5 +18,15 @@ spring:
       hibernate:
         format_sql: true
 
+  # Cấu hình upload video và PDF
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 200MB
+      max-request-size: 210MB
+
+# Thư mục lưu video và PDF của bài học
+app:
+  upload-dir: uploads/lesson-contents
 server:
   port: 8080
