@@ -32,6 +32,13 @@ public class DataInitializer {
                         role.setRoleName("Instructor");
                         return roleRepository.save(role);
                     });
+            Role studentRole = roleRepository
+                    .findByRoleName("Student")
+                    .orElseGet(() -> {
+                        Role role = new Role();
+                        role.setRoleName("Student");
+                        return roleRepository.save(role);
+                    });
 
             if (userRepository.findByUsername("admin").isEmpty()) {
                 User admin = new User();
@@ -53,6 +60,23 @@ public class DataInitializer {
                 instructor.setStatus(AccountStatus.Active);
                 instructor.setRole(instructorRole);
                 userRepository.save(instructor);
+            }
+            if (userRepository.findByUsername("student").isEmpty()) {
+
+                User student = new User();
+
+                student.setUsername("student");
+                student.setFullName("Học viên EduSmart");
+                student.setEmail("student@edusmart.local");
+
+                student.setPasswordHash(
+                        passwordEncoder.encode("12345678")
+                );
+
+                student.setStatus(AccountStatus.Active);
+                student.setRole(studentRole);
+
+                userRepository.save(student);
             }
         };
     }
