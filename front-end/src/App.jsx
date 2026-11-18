@@ -10,20 +10,32 @@ import {
   useParams,
 } from "react-router-dom";
 
-// Auth Context
+// ==========================================
+// AUTH CONTEXT
+// ==========================================
+
 import { AuthProvider } from "./context/AuthContext";
 
-// Auth Pages
+// ==========================================
+// AUTH PAGES
+// ==========================================
+
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
-// Layouts
+// ==========================================
+// LAYOUTS
+// ==========================================
+
 import InstructorLayout from "./layouts/InstructorLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import StudentLayout from "./layouts/StudentLayout";
 
-// Instructor Pages
+// ==========================================
+// INSTRUCTOR PAGES
+// ==========================================
+
 import InstructorDashboard from "./pages/instructor/InstructorDashboard";
 import TeacherCourses from "./pages/instructor/TeacherCourses";
 import CourseDetailInstructor from "./pages/instructor/CourseDetailInstructor";
@@ -35,14 +47,23 @@ import DraftManagement from "./pages/instructor/DraftManagement";
 import StudentList from "./pages/instructor/StudentList";
 import InstructorReports from "./pages/instructor/InstructorReports";
 
-// Student Pages
+// ==========================================
+// STUDENT PAGES
+// ==========================================
+
 import HomeContent from "./pages/student/HomeContent";
 import SearchResults from "./pages/student/SearchResults";
 import CourseCatalog from "./pages/student/CourseCatalog";
 import CourseDetailPage from "./pages/student/CourseDetailPage";
 import MyCourses from "./pages/student/MyCourses";
 
-// Admin Pages
+// Trang học bài
+import LessonLearningPage from "./pages/student/LessonLearningPage";
+
+// ==========================================
+// ADMIN PAGES
+// ==========================================
+
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageAccounts from "./pages/admin/ManageAccounts";
 import ManageRoles from "./pages/admin/ManageRoles";
@@ -51,9 +72,15 @@ import ManageCourses from "./pages/admin/ManageCourses";
 import ManagePayments from "./pages/admin/ManagePayments";
 import AdminReports from "./pages/admin/AdminReports";
 
-// Route bảo vệ
+// ==========================================
+// PROTECTED ROUTE
+// ==========================================
+
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-// ================= COURSE DETAIL =================
+
+// ==========================================
+// STUDENT COURSE DETAIL ROUTE
+// ==========================================
 
 function StudentCourseDetailRoute() {
   const { courseId } = useParams();
@@ -61,12 +88,16 @@ function StudentCourseDetailRoute() {
   return <CourseDetailPage courseId={courseId} />;
 }
 
-// ================= APP ROUTES =================
+// ==========================================
+// APP ROUTES
+// ==========================================
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* ============== AUTH ============== */}
+      {/* =====================================
+          AUTH
+      ===================================== */}
 
       <Route
         path="/login"
@@ -83,11 +114,15 @@ function AppRoutes() {
         element={<ForgotPassword />}
       />
 
-      {/* ============== INSTRUCTOR ============== */}
+      {/* =====================================
+          INSTRUCTOR
+      ===================================== */}
 
       <Route
         element={
-          <ProtectedRoute allowedRoles={["INSTRUCTOR"]} />
+          <ProtectedRoute
+            allowedRoles={["INSTRUCTOR"]}
+          />
         }
       >
         <Route
@@ -146,11 +181,15 @@ function AppRoutes() {
         </Route>
       </Route>
 
-      {/* ============== ADMIN ============== */}
+      {/* =====================================
+          ADMIN
+      ===================================== */}
 
       <Route
         element={
-          <ProtectedRoute allowedRoles={["ADMIN"]} />
+          <ProtectedRoute
+            allowedRoles={["ADMIN"]}
+          />
         }
       >
         <Route
@@ -194,12 +233,18 @@ function AppRoutes() {
         </Route>
       </Route>
 
-      {/* ============== STUDENT PUBLIC ============== */}
+      {/* =====================================
+          STUDENT LAYOUT
+      ===================================== */}
 
       <Route
         path="/student"
         element={<StudentLayout />}
       >
+        {/* =================================
+            PUBLIC STUDENT PAGES
+        ================================= */}
+
         <Route
           index
           element={<HomeContent />}
@@ -219,42 +264,85 @@ function AppRoutes() {
           path="courses/:courseId"
           element={<StudentCourseDetailRoute />}
         />
-        {/* Khóa học của tôi - yêu cầu đăng nhập STUDENT */}
-        <Route element={<ProtectedRoute allowedRoles={["Student"]} />}>
+
+        {/* =================================
+            STUDENT PROTECTED PAGES
+        ================================= */}
+
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["Student"]}
+            />
+          }
+        >
+          {/* KHÓA HỌC CỦA TÔI */}
+
           <Route
             path="my-courses"
             element={<MyCourses />}
           />
+
+          {/* =================================
+              TRANG HỌC BÀI
+              GET:
+              /api/student/courses/
+              {courseId}/lessons/{lessonId}
+          ================================= */}
+
+          <Route
+            path="courses/:courseId/lessons/:lessonId"
+            element={<LessonLearningPage />}
+          />
         </Route>
       </Route>
 
-      {/* ============== DEFAULT ============== */}
+      {/* =====================================
+          DEFAULT ROUTES
+      ===================================== */}
 
       <Route
         path="/"
-        element={<Navigate to="/student" replace />}
+        element={
+          <Navigate
+            to="/student"
+            replace
+          />
+        }
       />
 
       <Route
         path="*"
-        element={<Navigate to="/student" replace />}
+        element={
+          <Navigate
+            to="/student"
+            replace
+          />
+        }
       />
     </Routes>
   );
 }
 
-// ================= MAIN APP =================
+// ==========================================
+// MAIN APP
+// ==========================================
 
 export default function App() {
   return (
     <Router>
       <AuthProvider>
+        {/* =================================
+            TOAST NOTIFICATIONS
+        ================================= */}
+
         <Toaster
           position="top-right"
           reverseOrder={false}
           toastOptions={{
             duration: 3000,
             icon: null,
+
             style: {
               borderRadius: "10px",
               padding: "12px 16px",
@@ -264,12 +352,14 @@ export default function App() {
                 "0 4px 12px rgba(0,0,0,0.12)",
               minWidth: "300px",
             },
+
             success: {
               style: {
                 background: "#16A34A",
                 color: "#FFFFFF",
               },
             },
+
             error: {
               style: {
                 background: "#DC2626",
@@ -278,6 +368,10 @@ export default function App() {
             },
           }}
         />
+
+        {/* =================================
+            ROUTES
+        ================================= */}
 
         <AppRoutes />
       </AuthProvider>

@@ -2,6 +2,7 @@
 package com.example.back_end.repository;
 
 import com.example.back_end.entity.CourseRegistration;
+import com.example.back_end.enumType.CourseStatus;
 import com.example.back_end.enumType.RegistrationStatus;
 
 import org.springframework.data.domain.Page;
@@ -57,14 +58,6 @@ public interface CourseRegistrationRepository
     // ==========================================
     // 4. KIỂM TRA HỌC VIÊN ĐÃ MUA KHÓA HỌC
     // ==========================================
-    //
-    // Chỉ trả về true khi:
-    // - Đúng userId
-    // - Đúng courseId
-    // - Trạng thái Paid
-    //
-    // Sử dụng trong CourseServiceImpl
-    // ==========================================
 
     boolean existsByUser_UserIdAndCourse_CourseIdAndStatus(
             Integer userId,
@@ -75,16 +68,12 @@ public interface CourseRegistrationRepository
     // ==========================================
     // 5. KIỂM TRA ĐÃ MUA KHÓA HỌC
     // ==========================================
-    //
-    // Phương thức tiện ích.
-    // Không cần truyền RegistrationStatus.Paid
-    // mỗi lần gọi.
-    // ==========================================
 
     default boolean hasPurchasedCourse(
             Integer userId,
             Integer courseId
     ) {
+
         if (userId == null || courseId == null) {
             return false;
         }
@@ -98,10 +87,6 @@ public interface CourseRegistrationRepository
 
     // ==========================================
     // 6. ĐẾM SỐ HỌC VIÊN ĐÃ THANH TOÁN
-    // ==========================================
-    //
-    // Chỉ tính đăng ký trạng thái Paid.
-    // Đếm học viên duy nhất, tránh trùng lặp.
     // ==========================================
 
     @Query("""
@@ -121,24 +106,28 @@ public interface CourseRegistrationRepository
 
     @Query(
             value = """
-                SELECT cr
-                FROM CourseRegistration cr
-                JOIN FETCH cr.course c
-                LEFT JOIN FETCH c.instructor
-                LEFT JOIN FETCH c.category
-                WHERE cr.user.userId = :userId
-                  AND cr.status = :status
-            """,
+            SELECT cr
+            FROM CourseRegistration cr
+            JOIN FETCH cr.course c
+            LEFT JOIN FETCH c.instructor
+            LEFT JOIN FETCH c.category
+            WHERE cr.user.userId = :userId
+              AND cr.status = :status
+              AND c.status = :publishedStatus
+        """,
             countQuery = """
-                SELECT COUNT(cr)
-                FROM CourseRegistration cr
-                WHERE cr.user.userId = :userId
-                  AND cr.status = :status
-            """
+            SELECT COUNT(cr)
+            FROM CourseRegistration cr
+            JOIN cr.course c
+            WHERE cr.user.userId = :userId
+              AND cr.status = :status
+              AND c.status = :publishedStatus
+        """
     )
     Page<CourseRegistration> findMyCourses(
             @Param("userId") Integer userId,
             @Param("status") RegistrationStatus status,
+            @Param("publishedStatus") CourseStatus publishedStatus,
             Pageable pageable
     );
 
@@ -146,57 +135,64 @@ public interface CourseRegistrationRepository
     // 8. API MỚI: TÌM KIẾM + LỌC + PHÂN TRANG
     // ==========================================
     //
+    // Chỉ lấy khóa học:
+    // - Thuộc học viên đang đăng nhập
+    // - Đã thanh toán (Paid)
+    // - Đã xuất bản (Published)
+    //
     // Hỗ trợ:
-    // - Lọc theo học viên
-    // - Lọc trạng thái đăng ký
-    // - Tìm kiếm tên khóa học
+    // - Tìm kiếm theo tên khóa học
     // - Lọc theo ngày đăng ký
     // - Phân trang
+    // - Sắp xếp qua Pageable
     // ==========================================
 
     @Query(
             value = """
-                SELECT cr
-                FROM CourseRegistration cr
-                JOIN FETCH cr.course c
-                LEFT JOIN FETCH c.instructor
-                LEFT JOIN FETCH c.category
-                WHERE cr.user.userId = :userId
-                  AND cr.status = :status
+            SELECT cr
+            FROM CourseRegistration cr
+            JOIN FETCH cr.course c
+            LEFT JOIN FETCH c.instructor
+            LEFT JOIN FETCH c.category
+            WHERE cr.user.userId = :userId
+              AND cr.status = :status
+              AND c.status = :publishedStatus
 
-                  AND (
-                      :keyword IS NULL
-                      OR LOWER(c.title) LIKE
-                         LOWER(CONCAT('%', :keyword, '%'))
-                  )
+              AND (
+                  :keyword IS NULL
+                  OR LOWER(c.title) LIKE
+                     LOWER(CONCAT('%', :keyword, '%'))
+              )
 
-                  AND (
-                      :fromDate IS NULL
-                      OR cr.createdAt >= :fromDate
-                  )
-            """,
+              AND (
+                  :fromDate IS NULL
+                  OR cr.createdAt >= :fromDate
+              )
+        """,
             countQuery = """
-                SELECT COUNT(cr)
-                FROM CourseRegistration cr
-                JOIN cr.course c
-                WHERE cr.user.userId = :userId
-                  AND cr.status = :status
+            SELECT COUNT(cr)
+            FROM CourseRegistration cr
+            JOIN cr.course c
+            WHERE cr.user.userId = :userId
+              AND cr.status = :status
+              AND c.status = :publishedStatus
 
-                  AND (
-                      :keyword IS NULL
-                      OR LOWER(c.title) LIKE
-                         LOWER(CONCAT('%', :keyword, '%'))
-                  )
+              AND (
+                  :keyword IS NULL
+                  OR LOWER(c.title) LIKE
+                     LOWER(CONCAT('%', :keyword, '%'))
+              )
 
-                  AND (
-                      :fromDate IS NULL
-                      OR cr.createdAt >= :fromDate
-                  )
-            """
+              AND (
+                  :fromDate IS NULL
+                  OR cr.createdAt >= :fromDate
+              )
+        """
     )
     Page<CourseRegistration> findMyCoursesFiltered(
             @Param("userId") Integer userId,
             @Param("status") RegistrationStatus status,
+            @Param("publishedStatus") CourseStatus publishedStatus,
             @Param("keyword") String keyword,
             @Param("fromDate") LocalDateTime fromDate,
             Pageable pageable

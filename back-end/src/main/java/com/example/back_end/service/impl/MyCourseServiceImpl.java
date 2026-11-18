@@ -5,6 +5,7 @@ import com.example.back_end.dto.response.MyCourseResponse;
 import com.example.back_end.dto.response.PageResponse;
 import com.example.back_end.entity.CourseRegistration;
 import com.example.back_end.entity.User;
+import com.example.back_end.enumType.CourseStatus;
 import com.example.back_end.enumType.RegistrationStatus;
 import com.example.back_end.repository.CourseRegistrationRepository;
 import com.example.back_end.repository.QuizRepository;
@@ -42,7 +43,9 @@ public class MyCourseServiceImpl implements MyCourseService {
     private final QuizRepository quizRepository;
     private final QuizResultRepository quizResultRepository;
 
-    // API cũ vẫn hoạt động
+    // ==========================================
+    // API CŨ - GIỮ NGUYÊN TƯƠNG THÍCH
+    // ==========================================
     @Override
     @Transactional(readOnly = true)
     public PageResponse<MyCourseResponse> getMyCourses(
@@ -58,7 +61,9 @@ public class MyCourseServiceImpl implements MyCourseService {
         );
     }
 
-    // API mới: lọc, tìm kiếm, sắp xếp
+    // ==========================================
+    // API MỚI - LỌC, TÌM KIẾM, SẮP XẾP
+    // ==========================================
     @Override
     @Transactional(readOnly = true)
     public PageResponse<MyCourseResponse> getMyCourses(
@@ -114,15 +119,16 @@ public class MyCourseServiceImpl implements MyCourseService {
                         ? null
                         : keyword.trim();
 
-        // 3. Mới đăng ký: trong 30 ngày gần nhất
+        // 3. Lọc khóa học đăng ký trong 30 ngày
         LocalDateTime fromDate = null;
 
         if ("NEWEST".equals(normalizedSort)
                 || "RECENT_30_DAYS".equals(normalizedSort)) {
+
             fromDate = LocalDateTime.now().minusDays(30);
         }
 
-        // 4. Sắp xếp trong Repository
+        // 4. Sắp xếp
         Sort sort;
 
         if ("TITLE_ASC".equals(normalizedSort)) {
@@ -137,8 +143,7 @@ public class MyCourseServiceImpl implements MyCourseService {
             );
         }
 
-        // 5. Nếu chỉ tìm kiếm / lọc ngày / sắp xếp tên,
-        // Repository có thể phân trang trực tiếp.
+        // 5. Kiểm tra có cần lọc tiến độ không
         boolean needsProgressFiltering =
                 "IN_PROGRESS".equals(normalizedStatus)
                         || "COMPLETED".equals(normalizedStatus)
@@ -147,6 +152,9 @@ public class MyCourseServiceImpl implements MyCourseService {
         boolean needsProgressSorting =
                 "PROGRESS_DESC".equals(normalizedSort);
 
+        // ==========================================
+        // TRƯỜNG HỢP 1: PHÂN TRANG TRỰC TIẾP
+        // ==========================================
         if (!needsProgressFiltering && !needsProgressSorting) {
 
             Pageable pageable = PageRequest.of(
@@ -159,6 +167,7 @@ public class MyCourseServiceImpl implements MyCourseService {
                     courseRegistrationRepository.findMyCoursesFiltered(
                             userId,
                             RegistrationStatus.Paid,
+                            CourseStatus.Published,
                             searchKeyword,
                             fromDate,
                             pageable
@@ -172,9 +181,9 @@ public class MyCourseServiceImpl implements MyCourseService {
             return PageResponse.of(responsePage);
         }
 
-        // 6. Khi cần lọc tiến độ:
-        // Lấy các đăng ký đã lọc tên/ngày từ Repository
-        // theo từng đợt để bảo đảm phân trang cuối đúng.
+        // ==========================================
+        // TRƯỜNG HỢP 2: LỌC THEO TIẾN ĐỘ HỌC
+        // ==========================================
         List<MyCourseResponse> filteredCourses =
                 new ArrayList<>();
 
@@ -193,6 +202,7 @@ public class MyCourseServiceImpl implements MyCourseService {
             batch = courseRegistrationRepository.findMyCoursesFiltered(
                     userId,
                     RegistrationStatus.Paid,
+                    CourseStatus.Published,
                     searchKeyword,
                     fromDate,
                     batchPageable
@@ -215,7 +225,7 @@ public class MyCourseServiceImpl implements MyCourseService {
 
         } while (batch.hasNext());
 
-        // 7. Sắp xếp theo tiến độ cao nhất
+        // 6. Sắp xếp theo tiến độ cao nhất
         if (needsProgressSorting) {
             filteredCourses.sort(
                     Comparator.comparingInt(
@@ -224,7 +234,7 @@ public class MyCourseServiceImpl implements MyCourseService {
             );
         }
 
-        // 8. Phân trang sau khi lọc tiến độ
+        // 7. Phân trang sau khi lọc tiến độ
         int totalElements = filteredCourses.size();
 
         long offset =
@@ -261,7 +271,9 @@ public class MyCourseServiceImpl implements MyCourseService {
         return PageResponse.of(responsePage);
     }
 
-    // Kiểm tra trạng thái học tập
+    // ==========================================
+    // KIỂM TRA TRẠNG THÁI HỌC TẬP
+    // ==========================================
     private boolean matchesLearningStatus(
             MyCourseResponse course,
             String status
@@ -273,7 +285,9 @@ public class MyCourseServiceImpl implements MyCourseService {
         return status.equals(course.getLearningStatus());
     }
 
-    // Mapping khóa học và tính tiến độ
+    // ==========================================
+    // MAPPING KHÓA HỌC VÀ TÍNH TIẾN ĐỘ
+    // ==========================================
     private MyCourseResponse mapToResponse(
             CourseRegistration registration,
             Integer userId
@@ -289,7 +303,7 @@ public class MyCourseServiceImpl implements MyCourseService {
                         courseId
                 );
 
-        // Tổng Quiz người học đã nộp
+        // Tổng Quiz học viên đã hoàn thành
         long completedQuizzes =
                 quizResultRepository.countCompletedQuizzes(
                         userId,
