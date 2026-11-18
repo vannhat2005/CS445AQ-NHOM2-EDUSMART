@@ -29,10 +29,6 @@ spring:
 # Thư mục lưu video và PDF của bài học
 app:
   upload-dir: uploads/lesson-contents
-server:
-  port: 8080
-
-app:
   jwt:
     secret: Vt9Lh5dElsYKGt4zm2kd0Za9nKfJrCfxFThXTBhshDc=
     expiration-ms: 900000
@@ -41,3 +37,7 @@ app:
   cookie:
     secure: false
     same-site: Lax
+server:
+  port: 8080
+
+
