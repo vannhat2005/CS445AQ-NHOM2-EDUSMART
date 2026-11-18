@@ -43,4 +43,14 @@ public interface LessonContentRepository
 
     // Tìm nội dung theo ID và kiểm tra nội dung thuộc bài học
     Optional<LessonContent> findByContentIdAndLesson_LessonId(Integer contentId, Integer lessonId);
+
+    @Query("""
+        SELECT lc
+        FROM LessonContent lc
+        WHERE lc.lesson.lessonId = :lessonId
+        ORDER BY lc.orderNum ASC, lc.contentId ASC
+    """)
+    List<LessonContent> findContentsByLessonId(
+            @Param("lessonId") Integer lessonId
+    );
 }

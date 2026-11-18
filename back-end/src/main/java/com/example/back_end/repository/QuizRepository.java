@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface QuizRepository
         extends JpaRepository<Quiz, Integer> {
 
@@ -42,4 +44,13 @@ public interface QuizRepository
             @Param("courseId") Integer courseId
     );
 
+    @Query("""
+        SELECT q
+        FROM Quiz q
+        WHERE q.lesson.lessonId = :lessonId
+        ORDER BY q.quizId ASC
+    """)
+    List<Quiz> findQuizzesByLessonId(
+            @Param("lessonId") Integer lessonId
+    );
 }

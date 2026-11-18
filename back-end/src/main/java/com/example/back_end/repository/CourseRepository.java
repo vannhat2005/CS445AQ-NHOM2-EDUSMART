@@ -1,4 +1,3 @@
-
 package com.example.back_end.repository;
 
 import com.example.back_end.entity.Course;
@@ -9,7 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,26 +40,10 @@ public interface CourseRepository
             Integer instructorId
     );
 
-
     // ==========================================
     // 2. TÌM KIẾM KHÓA HỌC CHO HỌC VIÊN
     // ==========================================
 
-    /**
-     * Tìm kiếm khóa học theo:
-     *
-     * - Tên khóa học
-     * - Mô tả khóa học
-     * - Tên danh mục
-     *
-     * Không phân biệt chữ hoa, chữ thường.
-     * Xử lý từ khóa có khoảng trắng.
-     *
-     * Chỉ lấy khóa học có trạng thái
-     * được truyền từ CourseService.
-     *
-     * Hỗ trợ phân trang Pageable.
-     */
     @Query("""
         SELECT c
         FROM Course c
@@ -84,7 +66,6 @@ public interface CourseRepository
             Pageable pageable
     );
 
-
     // ==========================================
     // 3. CHI TIẾT KHÓA HỌC GIẢNG VIÊN
     // ==========================================
@@ -94,49 +75,51 @@ public interface CourseRepository
             Integer instructorId
     );
 
-
     // ==========================================
     // 4. KHÓA HỌC NỔI BẬT
     // ==========================================
 
     @Query(
             value = """
-        SELECT c
-        FROM Course c
-        LEFT JOIN CourseRegistration cr
-            ON cr.course = c
-            AND cr.status = :registrationStatus
-        WHERE c.status = :courseStatus
-        GROUP BY c
-        ORDER BY COUNT(cr) DESC, c.courseId DESC
-        """,
+            SELECT c
+            FROM Course c
+            LEFT JOIN CourseRegistration cr
+                ON cr.course = c
+                AND cr.status = :registrationStatus
+            WHERE c.status = :courseStatus
+            GROUP BY c
+            ORDER BY COUNT(cr) DESC, c.courseId DESC
+            """,
             countQuery = """
-        SELECT COUNT(c)
-        FROM Course c
-        WHERE c.status = :courseStatus
-        """
+            SELECT COUNT(c)
+            FROM Course c
+            WHERE c.status = :courseStatus
+            """
     )
     Page<Course> findFeaturedCourses(
             @Param("courseStatus") CourseStatus courseStatus,
-            @Param("registrationStatus") RegistrationStatus registrationStatus,
+            @Param("registrationStatus")
+            RegistrationStatus registrationStatus,
             Pageable pageable
     );
 
+    // ==========================================
+    // 5. KHÓA HỌC TRANG CHỦ
+    // ==========================================
 
     @Query("""
-    SELECT c
-    FROM Course c
-    WHERE c.status = :courseStatus
-      AND c.category.status = TRUE
-      AND (
-          :categoryId IS NULL
-          OR c.category.categoryId = :categoryId
-      )
-    """)
+        SELECT c
+        FROM Course c
+        WHERE c.status = :courseStatus
+          AND c.category.status = TRUE
+          AND (
+              :categoryId IS NULL
+              OR c.category.categoryId = :categoryId
+          )
+        """)
     Page<Course> findHomeCourses(
             @Param("courseStatus") CourseStatus courseStatus,
             @Param("categoryId") Integer categoryId,
             Pageable pageable
     );
-
 }

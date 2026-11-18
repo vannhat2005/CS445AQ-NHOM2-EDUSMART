@@ -112,8 +112,8 @@ export default function MyCourses() {
           err.response?.status === 401
             ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
             : err.response?.data?.message ||
-              err.message ||
-              "Không thể tải danh sách khóa học.";
+            err.message ||
+            "Không thể tải danh sách khóa học.";
 
         setError(message);
       } finally {
@@ -176,7 +176,20 @@ export default function MyCourses() {
   // 5. CHUYỂN ĐẾN TRANG HỌC
   // ==========================================
   const handleOpenCourse = (courseId) => {
-    navigate(`/courses/${courseId}/learn`);
+    console.log("[MyCourses] ID khóa học được chọn:", courseId);
+
+    const selectedCourse = courses.find(
+      (course) => String(course.courseId) === String(courseId)
+    );
+
+    console.log("[MyCourses] Thông tin khóa học:", selectedCourse);
+
+    if (courseId === null || courseId === undefined || courseId === "") {
+      console.error("Không tìm thấy ID khóa học");
+      return;
+    }
+
+    navigate(`/student/courses/${courseId}`);
   };
 
   // ==========================================
@@ -275,11 +288,10 @@ export default function MyCourses() {
                   key={filter.key}
                   type="button"
                   onClick={() => changeFilter(filter.key)}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
-                    activeFilter === filter.key
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${activeFilter === filter.key
                       ? "bg-white text-indigo-700 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   {filter.label}
 
@@ -353,7 +365,7 @@ export default function MyCourses() {
 
           /* ================= LOADING ================= */
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
+            {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
                 className="h-96 animate-pulse rounded-2xl bg-slate-200"
@@ -363,7 +375,7 @@ export default function MyCourses() {
         ) : filteredCourses.length > 0 ? (
 
           /* ================= COURSE GRID ================= */
-          <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredCourses.map((course) => (
               <MyCourseCard
                 key={course.courseId}
