@@ -1,54 +1,182 @@
 
-import axios from "axios";
+import api from "../api";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:8080";
+// ==========================================
+// 1. XỬ LÝ LỖI API
+// ==========================================
 
-/**
- * API tìm kiếm khóa học EduSmart.
- *
- * GET /api/courses/search
- *
- * Query params:
- * - keyword
- * - pageNo: bắt đầu từ 1
- * - pageSize: mặc định 8
- */
+const handleApiError = (error) => {
+  // Request bị hủy
+  if (
+    error?.code === "ERR_CANCELED" ||
+    error?.name === "CanceledError" ||
+    error?.name === "AbortError"
+  ) {
+    throw error;
+  }
+
+  // Backend trả lỗi HTTP
+  if (error?.response) {
+    const status = error.response.status;
+    const data = error.response.data;
+
+    let message =
+      data?.message ||
+      `Không thể tìm kiếm khóa học (HTTP ${status})`;
+
+    if (status === 400) {
+      message =
+        data?.message ||
+        "Tham số tìm kiếm không hợp lệ.";
+    } else if (status === 401) {
+      message =
+        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    } else if (status === 403) {
+      message =
+        "Bạn không có quyền truy cập.";
+    } else if (status === 404) {
+      message =
+        "Không tìm thấy API tìm kiếm khóa học.";
+    } else if (status >= 500) {
+      message =
+        data?.message ||
+        "Máy chủ gặp lỗi. Vui lòng thử lại sau.";
+    }
+
+    const apiError = new Error(message);
+    apiError.status = status;
+    apiError.code = data?.code;
+
+    throw apiError;
+  }
+
+  // Request timeout
+  if (error?.code === "ECONNABORTED") {
+    throw new Error(
+      "Kết nối quá thời gian. Vui lòng thử lại."
+    );
+  }
+
+  // Không kết nối được Backend
+  if (error?.isAxiosError) {
+    throw new Error(
+      "Không thể kết nối Backend. Kiểm tra Spring Boot hoặc CORS."
+    );
+  }
+
+  // Lỗi xử lý dữ liệu
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error(
+    "Đã xảy ra lỗi không xác định."
+  );
+};
+
+// ==========================================
+// 2. TÌM KIẾM KHÓA HỌC
+// ==========================================
+// GET /api/courses/search
+//
+// Query params:
+// - keyword
+// - pageNo: bắt đầu từ 1
+// - pageSize: mặc định 8
+//
+// api.js tự xử lý JWT và refresh token.
+// ==========================================
+
 export const searchCourses = async (
   keyword = "",
   pageNo = 1,
-  pageSize = 8
+  pageSize = 8,
+  signal
 ) => {
+  // Kiểm tra phân trang
+  if (
+    !Number.isInteger(pageNo) ||
+    pageNo < 1
+  ) {
+    throw new Error(
+      "Số trang phải là số nguyên >= 1."
+    );
+  }
+
+  if (
+    !Number.isInteger(pageSize) ||
+    pageSize < 1 ||
+    pageSize > 100
+  ) {
+    throw new Error(
+      "Kích thước trang phải từ 1 đến 100."
+    );
+  }
+
   try {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/courses/search`,
+    const response = await api.get(
+      "/courses/search",
       {
         params: {
-          keyword: String(keyword).trim(),
+          keyword: String(keyword ?? "").trim(),
           pageNo,
           pageSize,
         },
+        signal,
       }
     );
 
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Lỗi tìm kiếm khóa học:",
-      error.response?.data || error.message
-    );
+    const data = response.data;
 
-    throw error;
+    // Kiểm tra dữ liệu Backend
+    if (!data || typeof data !== "object") {
+      throw new Error(
+        "Backend không trả về dữ liệu hợp lệ."
+      );
+    }
+
+    // Kiểm tra ApiResponse Spring Boot
+    if (
+      data.code != null &&
+      data.code !== 1000
+    ) {
+      const error = new Error(
+        data.message ||
+        "Không thể tìm kiếm khóa học."
+      );
+
+      error.code = data.code;
+      error.status = response.status;
+
+      throw error;
+    }
+
+    // Giữ nguyên response.data
+    // để tương thích với frontend cũ
+    return data;
+  } catch (error) {
+    if (
+      error?.code !== "ERR_CANCELED" &&
+      error?.name !== "CanceledError" &&
+      error?.name !== "AbortError"
+    ) {
+      console.error(
+        "[CourseSearch] Lỗi tìm kiếm:",
+        error
+      );
+    }
+
+    handleApiError(error);
   }
 };
 
-/**
- * Chuẩn hóa PageResponse từ Spring Boot.
- *
- * Hỗ trợ các tên trường phân trang phổ biến.
- * Cần đối chiếu với PageResponse.java thực tế.
- */
+// ==========================================
+// 3. CHUẨN HÓA PAGE RESPONSE
+// ==========================================
+// Hỗ trợ nhiều kiểu PageResponse
+// của Spring Boot.
+// ==========================================
+
 export const normalizeSearchResponse = (
   response,
   pageNo = 1,
@@ -68,6 +196,7 @@ export const normalizeSearchResponse = (
     );
   }
 
+  // Tổng số khóa học
   const totalElements = Number(
     data?.totalElements ??
     data?.totalItems ??
@@ -75,29 +204,42 @@ export const normalizeSearchResponse = (
     courses.length
   );
 
+  // Tổng số trang
   const totalPages = Number(
     data?.totalPages ??
     data?.totalPage ??
     Math.ceil(totalElements / pageSize)
   );
 
+  // Trang hiện tại
+  const currentPage = Number(
+    data?.pageNo ??
+    pageNo
+  );
+
   return {
     courses,
     totalElements,
     totalPages,
-    currentPage: Number(data?.pageNo ?? pageNo),
+    currentPage,
   };
 };
 
+// ==========================================
+// 4. LẤY KẾT QUẢ TÌM KIẾM
+// ==========================================
+
 export const getSearchResults = async (
-  keyword,
+  keyword = "",
   pageNo = 1,
-  pageSize = 8
+  pageSize = 8,
+  signal
 ) => {
   const response = await searchCourses(
     keyword,
     pageNo,
-    pageSize
+    pageSize,
+    signal
   );
 
   return normalizeSearchResponse(

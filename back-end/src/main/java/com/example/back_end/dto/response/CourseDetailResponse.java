@@ -32,4 +32,6 @@ public class CourseDetailResponse {
     private Double averageRating;
     private Long totalReviews;
     private Long totalStudents;
+    private boolean isEnrolled;
+    private boolean canReview;
 }
