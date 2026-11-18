@@ -1,14 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getCurrentUser } from '../../services/authService';
 import { toast } from 'react-hot-toast';
 import {
   getAssignedCourseDetail,
   publishCourse
 } from '../../services/courseService';
-
-// ID giảng viên dùng để test API
-const INSTRUCTOR_ID = 2;
 
 const CourseDetailInstructor = () => {
   const navigate = useNavigate();
@@ -30,8 +28,10 @@ const CourseDetailInstructor = () => {
         setLoading(true);
         setError('');
 
+        const instructorId = await getCurrentUser();
+
         const data = await getAssignedCourseDetail(
-          INSTRUCTOR_ID,
+          instructorId,
           courseId
         );
 
@@ -99,8 +99,10 @@ const CourseDetailInstructor = () => {
     try {
       setIsSubmitting(true);
 
+      const instructorId = await getCurrentUser();
+
       const response = await publishCourse(
-        INSTRUCTOR_ID,
+        instructorId,
         courseId
       );
 
@@ -176,7 +178,7 @@ const CourseDetailInstructor = () => {
 
   const status = getStatus(course.status);
   // Sắp xếp chương theo orderNum tăng dần
-const chapters = [...(course.chapters || [])].sort((a, b) => a.orderNum - b.orderNum);
+  const chapters = [...(course.chapters || [])].sort((a, b) => a.orderNum - b.orderNum);
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto pt-6 pb-12">
