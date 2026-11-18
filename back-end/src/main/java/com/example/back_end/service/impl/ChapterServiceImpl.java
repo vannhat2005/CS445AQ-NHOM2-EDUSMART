@@ -8,6 +8,7 @@ import com.example.back_end.dto.response.PageResponse;
 import com.example.back_end.entity.Chapter;
 import com.example.back_end.entity.Course;
 import com.example.back_end.entity.Lesson;
+import com.example.back_end.entity.LessonContent;
 import com.example.back_end.enumType.CourseStatus;
 import com.example.back_end.enumType.GeneralStatus;
 import com.example.back_end.exception.AppException;
@@ -16,6 +17,7 @@ import com.example.back_end.mapper.ChapterMapper;
 import com.example.back_end.repository.ChapterRepository;
 import com.example.back_end.repository.CourseRepository;
 import com.example.back_end.repository.LessonRepository;
+import com.example.back_end.repository.LessonContentRepository;
 import com.example.back_end.service.ChapterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,7 @@ public class ChapterServiceImpl implements ChapterService {
     private final ChapterRepository chapterRepository;
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
+    private final LessonContentRepository lessonContentRepository;
     private final ChapterMapper chapterMapper;
 
     // Lấy danh sách chương học kèm số lượng bài học theo khóa học
@@ -171,13 +174,24 @@ public class ChapterServiceImpl implements ChapterService {
         );
 
         // 7. Nếu chuyển Active -> Inactive,
-        // vô hiệu hóa các bài học thuộc chương
+        // vô hiệu hóa các bài học và nội dung bài học thuộc chương
         if (deactivate) {
             List<Lesson> lessons =
                     lessonRepository.findByChapter_ChapterId(chapterId);
 
             for (Lesson lesson : lessons) {
                 lesson.setStatus(GeneralStatus.Inactive);
+
+                // Lấy tất cả nội dung thuộc bài học
+                List<LessonContent> contents = lessonContentRepository
+                        .findByLesson_LessonIdOrderByOrderNumAscContentIdAsc(lesson.getLessonId());
+
+                // Chuyển tất cả nội dung sang Inactive
+                for (LessonContent content : contents) {
+                    content.setStatus(GeneralStatus.Inactive);
+                }
+
+                lessonContentRepository.saveAll(contents);
             }
 
             lessonRepository.saveAll(lessons);

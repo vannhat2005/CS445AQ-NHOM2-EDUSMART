@@ -8,6 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface LessonContentRepository
         extends JpaRepository<LessonContent, Integer> {
@@ -31,4 +34,13 @@ public interface LessonContentRepository
             @Param("lessonId") Integer lessonId,
             @Param("status") GeneralStatus status
     );
+
+    // Lấy danh sách nội dung theo thứ tự tăng dần
+    List<LessonContent> findByLesson_LessonIdOrderByOrderNumAscContentIdAsc(Integer lessonId);
+
+    // Lấy nội dung có thứ tự lớn nhất để thêm nội dung mới
+    Optional<LessonContent> findFirstByLesson_LessonIdOrderByOrderNumDescContentIdDesc(Integer lessonId);
+
+    // Tìm nội dung theo ID và kiểm tra nội dung thuộc bài học
+    Optional<LessonContent> findByContentIdAndLesson_LessonId(Integer contentId, Integer lessonId);
 }
