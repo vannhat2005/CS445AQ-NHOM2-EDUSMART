@@ -46,4 +46,9 @@ public interface CategoryRepository
         LIMIT 3
         """, nativeQuery = true)
     List<Object[]> findTop3CategoriesByStudents();
+    // Kiểm tra tên danh mục đã tồn tại khi thêm mới
+    boolean existsByNameIgnoreCase(String name);
+
+    // Kiểm tra tên danh mục trùng với danh mục khác khi cập nhật
+    boolean existsByNameIgnoreCaseAndCategoryIdNot(String name, Integer categoryId);           
 }

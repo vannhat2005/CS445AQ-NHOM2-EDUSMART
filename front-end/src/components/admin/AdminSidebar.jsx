@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, ShieldCheck, FolderOpen, BookOpen, CreditCard, ChartNoAxesCombined, LogOut, X } from 'lucide-react';
+import LogoutModal from '../common/LogoutModal';
 
 const menus = [
   { title: 'Tổng quan', path: '/admin', icon: LayoutDashboard, end: true },
@@ -15,6 +16,11 @@ const menus = [
 
 const AdminSidebar = ({ isOpen, onClose, onLogout }) => {
   const [showLogout, setShowLogout] = useState(false);
+
+  const handleConfirmLogout = () => {
+    setShowLogout(false);
+    onLogout?.();
+  };
 
   return (
     <>
@@ -32,7 +38,7 @@ const AdminSidebar = ({ isOpen, onClose, onLogout }) => {
               <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-300">Admin</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden"><X size={20} /></button>
+          <button type="button" onClick={onClose} className="lg:hidden"><X size={20} /></button>
         </div>
 
         {/* Danh sách menu */}
@@ -54,9 +60,9 @@ const AdminSidebar = ({ isOpen, onClose, onLogout }) => {
           </nav>
         </div>
 
-        {/* Nút đăng xuất cố định ở cuối Sidebar */}
+        {/* Nút đăng xuất */}
         <div className="shrink-0 border-t border-white/10 p-3">
-          <button onClick={() => setShowLogout(true)}
+          <button type="button" onClick={() => setShowLogout(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white">
             <LogOut size={19} />
             <span>Đăng xuất</span>
@@ -64,22 +70,8 @@ const AdminSidebar = ({ isOpen, onClose, onLogout }) => {
         </div>
       </aside>
 
-      {/* Modal xác nhận đăng xuất */}
-      {showLogout && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900">Xác nhận đăng xuất</h3>
-            <p className="mt-2 text-sm text-gray-600">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống EduSmart không?</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowLogout(false)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Hủy</button>
-              <button onClick={() => { setShowLogout(false); onLogout?.(); }}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                <LogOut size={16} /> Đăng xuất
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Sử dụng Modal đăng xuất dùng chung */}
+      <LogoutModal isOpen={showLogout} onClose={() => setShowLogout(false)} onConfirm={handleConfirmLogout} />
     </>
   );
 };

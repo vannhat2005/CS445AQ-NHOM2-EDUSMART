@@ -342,7 +342,7 @@ const ManageLessons = () => {
                       >
                         {/* ID bài học */}
                         <td className="py-4 px-4 text-center font-medium text-gray-500">
-                          {lesson.lessonId}
+                          {index + 1}
                         </td>
 
                         {/* Tên bài học */}
