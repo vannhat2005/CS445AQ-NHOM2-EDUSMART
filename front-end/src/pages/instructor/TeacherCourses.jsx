@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 import React, { useEffect, useState } from 'react';
 import { getAssignedCourses } from '../../services/courseService';
+import { getCurrentUser } from '../../services/authService';
 
 // 1. Khai báo hằng số
-const INSTRUCTOR_ID = 2; // ID giảng viên dùng để test API
+
 const PAGE_SIZE = 10; // Số khóa học hiển thị trên mỗi trang
 
 const TeacherCourses = () => {
@@ -27,8 +28,14 @@ const TeacherCourses = () => {
         setLoading(true);
         setError('');
 
-        // Gọi API với instructorId, pageNo và pageSize
-        const data = await getAssignedCourses(INSTRUCTOR_ID, pageNo, PAGE_SIZE);
+        // Gọi API lấy thông tin người đang đăng nhập
+        const userResponse = await getCurrentUser();
+
+        // Lấy ID người đăng nhập
+        const instructorId = userResponse;
+
+        // Truyền ID vào API khóa học được phân công
+        const data = await getAssignedCourses(instructorId, pageNo, PAGE_SIZE);
 
         // Lấy dữ liệu phân trang từ ApiResponse
         const pageData = data.result;

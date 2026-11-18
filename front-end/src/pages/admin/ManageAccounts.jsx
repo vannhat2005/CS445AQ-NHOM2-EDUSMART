@@ -1,6 +1,12 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  getAccounts,
+  getAccountStatistics,
+  createAccount,
+  updateAccount,
+} from "../../services/adminUserService";
 
 const Icon = ({ children, className = "" }) => (
   <span className={`material-symbols-outlined ${className}`}>
@@ -8,72 +14,22 @@ const Icon = ({ children, className = "" }) => (
   </span>
 );
 
-// Dữ liệu tài khoản mẫu
-const initialAccounts = [
-  {
-    userId: 1001,
-    fullName: "Nguyễn Minh Quyền",
-    username: "quyennguyen",
-    email: "19nhat1991@gmail.com",
-    phone: "0912345678",
-    role: "Instructor",
-    status: "Active",
-  },
-  {
-    userId: 1002,
-    fullName: "Nguyễn Ân Thư",
-    username: "anthu123",
-    email: "thu200551@gmail.com",
-    phone: "",
-    role: "Student",
-    status: "Unverified",
-  },
-  {
-    userId: 1003,
-    fullName: "Hồ Thanh Hương",
-    username: "huongho",
-    email: "thanhhuong70705@gmail.com",
-    phone: "",
-    role: "Student",
-    status: "Inactive",
-  },
-  {
-    userId: 1004,
-    fullName: "Trần Quốc Bảo",
-    username: "baotq_admin",
-    email: "quocbao.it@edusmart.vn",
-    phone: "",
-    role: "Admin",
-    status: "Active",
-  },
-  {
-    userId: 1005,
-    fullName: "Lê Hoàng Nam",
-    username: "namle_teacher",
-    email: "hoangnam.edu@gmail.com",
-    phone: "",
-    role: "Instructor",
-    status: "Active",
-  },
-];
+const PAGE_SIZE = 5;
 
 const emptyForm = {
   fullName: "",
   username: "",
   email: "",
-  phone: "",
   password: "",
   role: "Student",
   status: "Active",
 };
 
-const PAGE_SIZE = 5;
-
 const roleLabel = {
   Admin: "Admin",
   Instructor: "Giảng viên",
   Student: "Học viên",
-  Support: "Hỗ trợ viên",
+
 };
 
 const roleIcon = {
@@ -83,77 +39,123 @@ const roleIcon = {
   Support: "support_agent",
 };
 
+const roles = [
+  { value: "Student", label: "Học viên", icon: "person" },
+  { value: "Instructor", label: "Giảng viên", icon: "school" },
+  { value: "Admin", label: "Admin", icon: "shield_person" },
+];
+
+const getErrorMessage = (error, fallback) => {
+  const data = error?.response?.data;
+
+  if (data?.errors && typeof data.errors === "object") {
+    const first = Object.values(data.errors)[0];
+    if (first) return String(first);
+  }
+
+  return data?.message || fallback;
+};
+
 const ManageAccounts = () => {
-  const [accounts, setAccounts] = useState(initialAccounts);
+  const [accounts, setAccounts] = useState([]);
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [statistics, setStatistics] = useState({
+    total: 0,
+    instructors: 0,
+    unverified: 0,
+    inactive: 0,
+  });
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState({ ...emptyForm });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Thống kê tài khoản
-  const statistics = useMemo(
-    () => ({
-      total: accounts.length,
-      instructors: accounts.filter(
-        a => a.role === "Instructor" && a.status === "Active"
-      ).length,
-      unverified: accounts.filter(
-        a => a.status === "Unverified"
-      ).length,
-      inactive: accounts.filter(
-        a => a.status === "Inactive"
-      ).length,
-    }),
-    [accounts]
-  );
+  useEffect(() => {
+    let active = true;
 
-  // Tìm kiếm và lọc tài khoản
-  const filteredAccounts = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
+    const timer = setTimeout(async () => {
+      try {
+        setLoading(true);
 
-    return accounts.filter(account => {
-      const matchSearch =
-        !search ||
-        account.fullName.toLowerCase().includes(search) ||
-        account.username.toLowerCase().includes(search) ||
-        account.email.toLowerCase().includes(search) ||
-        String(account.userId).includes(search);
+        const response = await getAccounts(
+          keyword.trim(),
+          statusFilter,
+          page,
+          PAGE_SIZE
+        );
 
-      const matchStatus =
-        statusFilter === "all" ||
-        account.status === statusFilter;
+        if (!active) return;
 
-      return matchSearch && matchStatus;
-    });
-  }, [accounts, keyword, statusFilter]);
+        const result = response.result;
 
-  // Phân trang
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredAccounts.length / PAGE_SIZE)
-  );
+        setAccounts(result?.content || []);
+        setTotalElements(result?.totalElements || 0);
+        setTotalPages(Math.max(result?.totalPages || 1, 1));
+      } catch (error) {
+        if (active) {
+          setAccounts([]);
+          toast.error(
+            getErrorMessage(error, "Không thể tải danh sách tài khoản")
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 300);
 
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [keyword, statusFilter, page, refreshKey]);
 
-  const displayedAccounts = filteredAccounts.slice(
-    startIndex,
-    startIndex + PAGE_SIZE
-  );
+  useEffect(() => {
+    let active = true;
+
+    const loadStatistics = async () => {
+      try {
+        const response = await getAccountStatistics();
+
+        if (active) {
+          setStatistics(response.result || {
+            total: 0,
+            instructors: 0,
+            unverified: 0,
+            inactive: 0,
+          });
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(
+            getErrorMessage(error, "Không thể tải thống kê tài khoản")
+          );
+        }
+      }
+    };
+
+    loadStatistics();
+
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
 
   const updateForm = (field, value) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  // Mở modal thêm tài khoản
   const openAdd = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
@@ -161,128 +163,128 @@ const ManageAccounts = () => {
     setShowModal(true);
   };
 
-  // Mở modal sửa tài khoản
-  const openEdit = account => {
+  const openEdit = (account) => {
     setEditingId(account.userId);
-
     setForm({
-      fullName: account.fullName,
-      username: account.username,
-      email: account.email,
-      phone: account.phone || "",
+      fullName: account.fullName || "",
+      username: account.username || "",
+      email: account.email || "",
       password: "",
-      role: account.role,
-      status: account.status,
+      role: account.role || "Student",
+      status: account.status || "Active",
     });
-
     setShowPassword(false);
     setShowModal(true);
   };
 
   const closeModal = () => {
     if (saving) return;
-
     setShowModal(false);
     setEditingId(null);
   };
 
-  // Thêm hoặc cập nhật tài khoản
-  const handleSave = e => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!form.fullName.trim()) {
+    const fullName = form.fullName.trim();
+    const username = form.username.trim();
+    const email = form.email.trim();
+    const password = form.password;
+
+    if (!fullName) {
       toast.error("Họ và tên không được để trống");
       return;
     }
 
-    if (!form.username.trim()) {
+    if (!username) {
       toast.error("Tên đăng nhập không được để trống");
       return;
     }
 
-    if (!form.email.trim()) {
+    if (!email) {
       toast.error("Email không được để trống");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Email không đúng định dạng");
       return;
     }
 
-    if (editingId === null && !form.password.trim()) {
+    if (editingId === null && !password.trim()) {
       toast.error("Mật khẩu không được để trống");
       return;
     }
 
-    if (form.password && form.password.length < 8) {
+    if (password && password.length < 8) {
       toast.error("Mật khẩu phải có ít nhất 8 ký tự");
       return;
     }
 
-    const duplicated = accounts.some(
-      account =>
-        account.userId !== editingId &&
-        (
-          account.username.toLowerCase() ===
-            form.username.trim().toLowerCase() ||
-          account.email.toLowerCase() ===
-            form.email.trim().toLowerCase()
-        )
-    );
-
-    if (duplicated) {
-      toast.error("Tên đăng nhập hoặc email đã tồn tại");
+    if (editingId === null && !form.role) {
+      toast.error("Vui lòng chọn vai trò");
       return;
     }
 
-    setSaving(true);
-
-    if (editingId !== null) {
-      setAccounts(prev =>
-        prev.map(account => {
-          if (account.userId !== editingId) {
-            return account;
-          }
-
-          return {
-            ...account,
-            fullName: form.fullName.trim(),
-            username: form.username.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            status: form.status,
-          };
-        })
-      );
-
-      toast.success("Cập nhật thông tin tài khoản thành công");
-    } else {
-      const newId =
-        Math.max(1000, ...accounts.map(a => a.userId)) + 1;
-
-      setAccounts(prev => [
-        {
-          userId: newId,
-          fullName: form.fullName.trim(),
-          username: form.username.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
-          role: form.role,
-          status: form.status,
-        },
-        ...prev,
-      ]);
-
-      toast.success("Thêm tài khoản thành công");
+    if (!form.status) {
+      toast.error("Vui lòng chọn trạng thái tài khoản");
+      return;
     }
 
-    setSaving(false);
-    setShowModal(false);
-    setPage(1);
+    const payload = {
+      fullName,
+      username,
+      email,
+      password,
+      status: form.status,
+    };
+
+    if (editingId === null) {
+      payload.role = form.role;
+    }
+
+    try {
+      setSaving(true);
+
+      let response;
+
+      if (editingId !== null) {
+        response = await updateAccount(editingId, payload);
+      } else {
+        response = await createAccount(payload);
+      }
+
+      toast.success(
+        response.message ||
+          (editingId !== null
+            ? "Cập nhật thông tin tài khoản thành công"
+            : "Thêm tài khoản thành công")
+      );
+
+      setShowModal(false);
+      setEditingId(null);
+
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        setRefreshKey((prev) => prev + 1);
+      }
+
+      if (page !== 1) {
+        setRefreshKey((prev) => prev + 1);
+      }
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error, "Không thể lưu tài khoản")
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Cấu hình 4 thẻ thống kê
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+
   const stats = [
     {
       label: "Tổng người dùng",
@@ -320,7 +322,6 @@ const ManageAccounts = () => {
 
   return (
     <div className="w-full flex flex-col gap-6 px-2 pt-4 pb-12">
-
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Icon className="text-[18px]">school</Icon>
@@ -331,13 +332,12 @@ const ManageAccounts = () => {
         </span>
       </nav>
 
-      {/* Tiêu đề và nút thêm tài khoản */}
+      {/* Tiêu đề */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Quản lý tài khoản
           </h1>
-
           <p className="text-sm text-gray-500 mt-1">
             Quản lý thông tin, phân quyền và trạng thái tài khoản
             người dùng trên hệ thống EduSmart.
@@ -354,30 +354,25 @@ const ManageAccounts = () => {
         </button>
       </div>
 
-      {/* Thống kê - Icon nằm bên trái giống ảnh mẫu */}
+      {/* Thống kê */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(item => (
+        {stats.map((item) => (
           <div
             key={item.label}
             className={`${item.bg} rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4`}
           >
-            {/* Icon bên trái */}
             <div
               className={`w-14 h-14 rounded-full ${item.iconBg} ${item.color} flex items-center justify-center shrink-0`}
             >
-              <Icon className="text-[30px]">
-                {item.icon}
-              </Icon>
+              <Icon className="text-[30px]">{item.icon}</Icon>
             </div>
 
-            {/* Nội dung thống kê bên phải */}
             <div className="min-w-0">
               <p className="text-xs font-semibold text-gray-700">
                 {item.label}
               </p>
-
               <p className={`text-3xl font-bold mt-2 ${item.color}`}>
-                {item.value}
+                {item.value ?? 0}
               </p>
             </div>
           </div>
@@ -394,7 +389,7 @@ const ManageAccounts = () => {
           <input
             type="text"
             value={keyword}
-            onChange={e => {
+            onChange={(e) => {
               setKeyword(e.target.value);
               setPage(1);
             }}
@@ -405,7 +400,7 @@ const ManageAccounts = () => {
 
         <select
           value={statusFilter}
-          onChange={e => {
+          onChange={(e) => {
             setStatusFilter(e.target.value);
             setPage(1);
           }}
@@ -423,6 +418,7 @@ const ManageAccounts = () => {
             setKeyword("");
             setStatusFilter("all");
             setPage(1);
+            setRefreshKey((prev) => prev + 1);
           }}
           className="h-10 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold flex items-center justify-center gap-2"
         >
@@ -447,17 +443,15 @@ const ManageAccounts = () => {
             </thead>
 
             <tbody className="divide-y divide-gray-100">
-              {displayedAccounts.map(account => (
+              {accounts.map((account, index) => (
                 <tr
                   key={account.userId}
                   className="hover:bg-gray-50 transition-colors"
                 >
-                  {/* ID */}
                   <td className="px-4 py-4 text-blue-600 font-semibold text-sm">
-                    #{account.userId}
+                    #{index + 1 + startIndex}
                   </td>
 
-                  {/* Người dùng */}
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -475,12 +469,10 @@ const ManageAccounts = () => {
                     </div>
                   </td>
 
-                  {/* Tên đăng nhập */}
                   <td className="px-4 py-4 text-sm text-gray-700">
                     {account.username}
                   </td>
 
-                  {/* Vai trò */}
                   <td className="px-4 py-4">
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
@@ -494,12 +486,10 @@ const ManageAccounts = () => {
                       <Icon className="text-[15px]">
                         {roleIcon[account.role] || "person"}
                       </Icon>
-
                       {roleLabel[account.role] || account.role}
                     </span>
                   </td>
 
-                  {/* Trạng thái */}
                   <td className="px-4 py-4 text-center">
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
@@ -523,7 +513,6 @@ const ManageAccounts = () => {
                     </span>
                   </td>
 
-                  {/* Nút sửa */}
                   <td className="px-4 py-4 text-center">
                     <button
                       type="button"
@@ -537,13 +526,15 @@ const ManageAccounts = () => {
                 </tr>
               ))}
 
-              {displayedAccounts.length === 0 && (
+              {accounts.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}
                     className="py-12 text-center text-sm text-gray-500"
                   >
-                    Không tìm thấy tài khoản phù hợp.
+                    {loading
+                      ? "Đang tải danh sách tài khoản..."
+                      : "Không tìm thấy tài khoản phù hợp."}
                   </td>
                 </tr>
               )}
@@ -556,21 +547,18 @@ const ManageAccounts = () => {
           <p className="text-xs text-gray-500">
             Hiển thị{" "}
             <strong>
-              {filteredAccounts.length === 0 ? 0 : startIndex + 1}
+              {totalElements === 0 ? 0 : startIndex + 1}
               {" - "}
-              {Math.min(
-                startIndex + PAGE_SIZE,
-                filteredAccounts.length
-              )}
+              {Math.min(startIndex + PAGE_SIZE, totalElements)}
             </strong>
             {" "}trên tổng số{" "}
-            <strong>{filteredAccounts.length}</strong> tài khoản
+            <strong>{totalElements}</strong> tài khoản
           </p>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || loading}
               onClick={() => setPage(currentPage - 1)}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 disabled:opacity-30"
             >
@@ -583,7 +571,7 @@ const ManageAccounts = () => {
 
             <button
               type="button"
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() => setPage(currentPage + 1)}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 disabled:opacity-30"
             >
@@ -593,12 +581,10 @@ const ManageAccounts = () => {
         </div>
       </div>
 
-      {/* Modal thêm hoặc sửa tài khoản */}
+      {/* Modal thêm / sửa */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden">
-
-            {/* Tiêu đề modal */}
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -633,14 +619,13 @@ const ManageAccounts = () => {
               </button>
             </div>
 
-            {/* Form tài khoản */}
             <form
               id="accountForm"
               onSubmit={handleSave}
               noValidate
               className="p-6 space-y-5 overflow-y-auto flex-1"
             >
-              {/* Họ tên và tên đăng nhập */}
+              {/* Họ tên / Username */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -649,7 +634,7 @@ const ManageAccounts = () => {
 
                   <input
                     value={form.fullName}
-                    onChange={e =>
+                    onChange={(e) =>
                       updateForm("fullName", e.target.value)
                     }
                     placeholder="Nhập họ và tên..."
@@ -664,7 +649,7 @@ const ManageAccounts = () => {
 
                   <input
                     value={form.username}
-                    onChange={e =>
+                    onChange={(e) =>
                       updateForm("username", e.target.value)
                     }
                     placeholder="Nhập tên đăng nhập..."
@@ -673,39 +658,21 @@ const ManageAccounts = () => {
                 </div>
               </div>
 
-              {/* Email và số điện thoại */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Địa chỉ Email <span className="text-red-500">*</span>
-                  </label>
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Địa chỉ Email <span className="text-red-500">*</span>
+                </label>
 
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={e =>
-                      updateForm("email", e.target.value)
-                    }
-                    placeholder="example@gmail.com"
-                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Số điện thoại
-                  </label>
-
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={e =>
-                      updateForm("phone", e.target.value)
-                    }
-                    placeholder="Nhập số điện thoại..."
-                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    updateForm("email", e.target.value)
+                  }
+                  placeholder="example@gmail.com"
+                  className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               {/* Mật khẩu */}
@@ -724,7 +691,7 @@ const ManageAccounts = () => {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={form.password}
-                    onChange={e =>
+                    onChange={(e) =>
                       updateForm("password", e.target.value)
                     }
                     placeholder={
@@ -737,15 +704,11 @@ const ManageAccounts = () => {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowPassword(!showPassword)
-                    }
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
                   >
                     <Icon className="text-[19px]">
-                      {showPassword
-                        ? "visibility_off"
-                        : "visibility"}
+                      {showPassword ? "visibility_off" : "visibility"}
                     </Icon>
                   </button>
                 </div>
@@ -763,38 +726,15 @@ const ManageAccounts = () => {
                 {editingId !== null ? (
                   <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-50 text-gray-600 text-sm">
                     <Icon className="text-[19px]">lock</Icon>
-                    {roleLabel[form.role]} - Không được thay đổi vai trò tại đây
+                    {roleLabel[form.role] || form.role} - Không được thay đổi vai trò tại đây
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      {
-                        value: "Student",
-                        label: "Học viên",
-                        icon: "person",
-                      },
-                      {
-                        value: "Instructor",
-                        label: "Giảng viên",
-                        icon: "school",
-                      },
-                      {
-                        value: "Admin",
-                        label: "Admin",
-                        icon: "shield_person",
-                      },
-                      {
-                        value: "Support",
-                        label: "Hỗ trợ viên",
-                        icon: "support_agent",
-                      },
-                    ].map(role => (
+                    {roles.map((role) => (
                       <button
                         key={role.value}
                         type="button"
-                        onClick={() =>
-                          updateForm("role", role.value)
-                        }
+                        onClick={() => updateForm("role", role.value)}
                         className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border-2 transition-colors ${
                           form.role === role.value
                             ? "border-blue-600 bg-blue-50 text-blue-600"
@@ -829,7 +769,7 @@ const ManageAccounts = () => {
 
                 <select
                   value={form.status}
-                  onChange={e =>
+                  onChange={(e) =>
                     updateForm("status", e.target.value)
                   }
                   className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500"

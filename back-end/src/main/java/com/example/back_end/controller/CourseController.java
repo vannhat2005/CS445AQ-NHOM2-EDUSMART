@@ -42,6 +42,7 @@ public class CourseController {
     // ==========================================
 
 
+
     private Integer getCurrentUserId() {
 
         Authentication authentication =
@@ -73,7 +74,10 @@ public class CourseController {
         // Trả về ID của người đang đăng nhập
         return user.getUserId();
     }
-
+    @GetMapping("/current-user-id")
+    public Integer getCurrentUserIdd() {
+        return getCurrentUserId();
+    }
     // ==========================================
     // GIẢNG VIÊN: DANH SÁCH KHÓA HỌC
     // ==========================================
