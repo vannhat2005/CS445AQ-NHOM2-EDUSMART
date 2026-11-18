@@ -496,12 +496,12 @@ const ManageCourses = () => {
                 </tr>
               )}
 
-              {!loading && !loadError && courses.map(course => (
+              {!loading && !loadError && courses.map((course, index) => (
                 <tr key={course.courseId} className="hover:bg-gray-50">
 
                   {/* ID */}
                   <td className="px-4 py-4 text-blue-600 font-semibold text-sm">
-                    #{course.courseId}
+                    #{index + 1 + startIndex}
                   </td>
 
                   {/* Tên và ảnh khóa học */}
