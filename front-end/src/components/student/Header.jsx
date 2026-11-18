@@ -1,46 +1,111 @@
 
-import React, { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  NavLink,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  Menu,
+  X,
+  GraduationCap,
+  UserRound,
+  LogOut,
+  BookOpen,
+  Bot,
+  LoaderCircle,
+  LogIn,
+  UserPlus,
+} from "lucide-react";
+
+import { useAuth } from "../../context/AuthContext";
+
+// ========================================
+// API TÌM KIẾM KHÓA HỌC
+// ========================================
 
 const API_URL = "/api/courses/search";
+
+// ========================================
+// NAV LINK STYLE
+// ========================================
+
+const navClass = ({ isActive }) =>
+  [
+    "flex h-full items-center border-b-2",
+    "text-sm font-semibold transition-colors",
+    isActive
+      ? "border-blue-600 text-blue-600"
+      : "border-transparent text-slate-600 hover:text-blue-600",
+  ].join(" ");
+
+// ========================================
+// HEADER
+// ========================================
 
 export default function Header() {
   const navigate = useNavigate();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const {
+    user,
+    isAuthenticated,
+    logout,
+  } = useAuth();
 
-  const [keyword, setKeyword] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [profileOpen, setProfileOpen] =
+    useState(false);
+
+  const [keyword, setKeyword] =
+    useState("");
+
+  const [suggestions, setSuggestions] =
+    useState([]);
+
+  const [showSuggestions, setShowSuggestions] =
+    useState(false);
+
+  const [searchLoading, setSearchLoading] =
+    useState(false);
+
+  const [loggingOut, setLoggingOut] =
+    useState(false);
 
   const searchRef = useRef(null);
+  const profileRef = useRef(null);
   const requestId = useRef(0);
 
-  const navClass = ({ isActive }) =>
-    `h-full flex items-center font-title-sm text-title-sm transition-colors border-b-2 ${
-      isActive
-        ? "text-primary border-primary"
-        : "text-on-surface-variant hover:text-primary border-transparent"
-    }`;
+  // ========================================
+  // TÌM KIẾM GỢI Ý
+  // ========================================
 
-  // Gọi API gợi ý sau khi người dùng ngừng nhập 350ms
   useEffect(() => {
     const value = keyword.trim();
 
     if (!value) {
       requestId.current += 1;
       setSuggestions([]);
-      setLoading(false);
+      setSearchLoading(false);
       setShowSuggestions(false);
       return;
     }
 
-    const currentRequest = ++requestId.current;
+    const currentRequest =
+      ++requestId.current;
 
     const timer = setTimeout(async () => {
-      setLoading(true);
+      setSearchLoading(true);
 
       try {
         const params = new URLSearchParams({
@@ -49,34 +114,52 @@ export default function Header() {
           pageSize: "5",
         });
 
-        const response = await fetch(`${API_URL}?${params}`);
+        const response = await fetch(
+          `${API_URL}?${params}`
+        );
 
         if (!response.ok) {
-          throw new Error("Không thể tải gợi ý khóa học");
+          throw new Error(
+            "Không thể tải gợi ý khóa học"
+          );
         }
 
         const data = await response.json();
 
-        // Tương thích với các kiểu PageResponse thường gặp
         const result =
+          data?.result?.items ??
+          data?.result?.content ??
           data?.items ??
           data?.content ??
           data?.data?.items ??
           data?.data?.content ??
           [];
 
-        if (currentRequest === requestId.current) {
-          setSuggestions(Array.isArray(result) ? result : []);
+        if (
+          currentRequest === requestId.current
+        ) {
+          setSuggestions(
+            Array.isArray(result)
+              ? result
+              : []
+          );
         }
       } catch (error) {
-        console.error("Lỗi tìm kiếm gợi ý:", error);
+        console.error(
+          "Lỗi tìm kiếm gợi ý:",
+          error
+        );
 
-        if (currentRequest === requestId.current) {
+        if (
+          currentRequest === requestId.current
+        ) {
           setSuggestions([]);
         }
       } finally {
-        if (currentRequest === requestId.current) {
-          setLoading(false);
+        if (
+          currentRequest === requestId.current
+        ) {
+          setSearchLoading(false);
         }
       }
     }, 350);
@@ -84,74 +167,165 @@ export default function Header() {
     return () => clearTimeout(timer);
   }, [keyword]);
 
-  // Đóng gợi ý khi click bên ngoài
+  // ========================================
+  // ĐÓNG MENU KHI CLICK BÊN NGOÀI
+  // ========================================
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         searchRef.current &&
-        !searchRef.current.contains(event.target)
+        !searchRef.current.contains(
+          event.target
+        )
       ) {
         setShowSuggestions(false);
       }
+
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(
+          event.target
+        )
+      ) {
+        setProfileOpen(false);
+      }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     };
   }, []);
+
+  // ========================================
+  // TÌM KIẾM
+  // ========================================
 
   const handleSearch = (event) => {
     event?.preventDefault();
 
     const value = keyword.trim();
 
+    setShowSuggestions(false);
+    setMenuOpen(false);
+
     if (!value) {
       navigate("/student/courses");
       return;
     }
 
-    setShowSuggestions(false);
-    navigate(`/student/search?keyword=${encodeURIComponent(value)}&page=1`);
+    navigate(
+      `/student/search?keyword=${encodeURIComponent(
+        value
+      )}&page=1`
+    );
   };
 
   const handleSuggestionClick = (course) => {
-    const title = course.title || course.courseTitle || "";
+    const title =
+      course.title ||
+      course.courseTitle ||
+      "";
 
     setKeyword(title);
     setShowSuggestions(false);
 
     navigate(
-      `/student/search?keyword=${encodeURIComponent(title)}&page=1`
+      `/student/search?keyword=${encodeURIComponent(
+        title
+      )}&page=1`
     );
   };
 
-  const closeMobileMenu = () => setMenuOpen(false);
+  // ========================================
+  // ĐĂNG XUẤT
+  // ========================================
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await logout();
+    } catch (error) {
+      console.error(
+        "Lỗi khi đăng xuất:",
+        error
+      );
+    } finally {
+      setLoggingOut(false);
+      setProfileOpen(false);
+      setMenuOpen(false);
+      navigate("/login", {
+        replace: true,
+      });
+    }
+  };
+
+  // ========================================
+  // ĐI ĐẾN KHÓA HỌC CỦA TÔI
+  // ========================================
+
+  const handleMyCourses = () => {
+    setMenuOpen(false);
+    setProfileOpen(false);
+
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: "/student/my-courses",
+          },
+        },
+      });
+
+      return;
+    }
+
+    navigate("/student/my-courses");
+  };
+
+  // ========================================
+  // GIAO DIỆN HEADER
+  // ========================================
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 h-20 z-50 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.06)] border-b border-surface-variant">
-        <div className="h-20 max-w-7xl mx-auto px-margin-mobile md:px-margin-tablet lg:px-margin flex items-center justify-between gap-space-md">
+      <header className="fixed inset-x-0 top-0 z-50 h-20 border-b border-slate-200 bg-white shadow-sm">
 
-          {/* LOGO VÀ MENU DESKTOP */}
-          <div className="flex items-center gap-space-lg flex-shrink-0">
+        <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+
+          {/* LOGO + NAVIGATION */}
+          <div className="flex shrink-0 items-center gap-7">
+
             <Link
-              className="flex items-center gap-space-sm group focus:outline-none"
               to="/student"
+              onClick={() => {
+                setMenuOpen(false);
+              }}
+              className="flex items-center gap-2"
             >
-              <img
-                alt="EduSmart Logo"
-                className="h-8 w-auto object-contain"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjEn4LuRxFdKzCHfhDAhJSJAM-8J3t2lti012G4lFKPra8G0HL27HRMzZBOkRzMRrD9DcFIJWv8iONjYYGe5EPb_sb9N--02vRRmeWnmIQILUYdkDwbVt9IAyR-zD0TyOhFSaRI5Fu7OQZaXquxx-8Sy0kwyJ8JqBcaMO07GAUHEMARjjsSceMiRtTYxQOmdEKEzLRyJTpUTmH-306dT5-aGLTdhoZs2XjFF4nfXJC"
-              />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <GraduationCap size={22} />
+              </div>
 
-              <span className="font-headline-sm text-headline-sm text-primary tracking-tight font-extrabold">
+              <span className="text-xl font-extrabold tracking-tight text-blue-700">
                 EduSmart
               </span>
             </Link>
 
-            <nav className="hidden xl:flex items-center gap-space-lg h-20">
+            {/* MENU DESKTOP */}
+            <nav className="hidden h-20 items-center gap-6 xl:flex">
+
               <NavLink
                 to="/student"
                 end
@@ -167,32 +341,47 @@ export default function Header() {
                 Khám phá khóa học
               </NavLink>
 
-              <a
-                className="h-full flex items-center text-on-surface-variant hover:text-primary font-title-sm text-title-sm transition-colors border-b-2 border-transparent"
-                href="#courses"
+              {/* KHÓA HỌC CỦA TÔI */}
+              <NavLink
+                to="/student/my-courses"
+                onClick={(event) => {
+                  if (!isAuthenticated) {
+                    event.preventDefault();
+                    handleMyCourses();
+                  }
+                }}
+                className={navClass}
               >
                 Khóa học của tôi
-              </a>
+              </NavLink>
+
             </nav>
           </div>
 
-          {/* THANH TÌM KIẾM */}
+          {/* ========================================
+              SEARCH DESKTOP
+          ======================================== */}
+
           <div
             ref={searchRef}
-            className="hidden md:flex flex-1 max-w-md mx-space-sm items-center relative"
+            className="relative mx-2 hidden max-w-md flex-1 md:block"
           >
             <form
               onSubmit={handleSearch}
-              className="w-full relative"
+              className="relative"
             >
-              <span className="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-outline pointer-events-none select-none text-[20px]">
-                search
-              </span>
+              <Search
+                size={19}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+              />
 
               <input
+                type="search"
                 value={keyword}
                 onChange={(event) => {
-                  setKeyword(event.target.value);
+                  setKeyword(
+                    event.target.value
+                  );
                   setShowSuggestions(true);
                 }}
                 onFocus={() => {
@@ -200,236 +389,316 @@ export default function Header() {
                     setShowSuggestions(true);
                   }
                 }}
-                className="w-full pl-11 pr-space-md py-space-sm bg-surface-container-low hover:bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm rounded-full border border-transparent focus:border-primary focus:bg-surface-container-lowest focus:outline-none transition-all"
                 placeholder="Tìm kiếm khóa học, giảng viên..."
-                type="search"
                 autoComplete="off"
-                aria-label="Tìm kiếm khóa học"
+                className="h-11 w-full rounded-full border border-slate-100 bg-[#f2f3ff] pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
               />
             </form>
 
-            {/* GỢI Ý TÌM KIẾM */}
-            {showSuggestions && keyword.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-[60]">
+            {/* GỢI Ý */}
+            {showSuggestions &&
+              keyword.trim() && (
+                <div className="absolute left-0 right-0 top-full z-[60] mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
 
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Gợi ý khóa học
-                  </p>
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Gợi ý khóa học
+                    </p>
+                  </div>
+
+                  {searchLoading ? (
+                    <div className="flex items-center gap-2 px-4 py-5 text-sm text-slate-500">
+                      <LoaderCircle
+                        size={17}
+                        className="animate-spin"
+                      />
+                      Đang tìm kiếm...
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    <div className="max-h-80 overflow-y-auto">
+
+                      {suggestions.map(
+                        (course, index) => {
+                          const title =
+                            course.title ||
+                            course.courseTitle ||
+                            "Khóa học";
+
+                          return (
+                            <button
+                              key={
+                                course.courseId ??
+                                course.id ??
+                                index
+                              }
+                              type="button"
+                              onClick={() =>
+                                handleSuggestionClick(
+                                  course
+                                )
+                              }
+                              className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
+                            >
+                              <Search
+                                size={18}
+                                className="shrink-0 text-slate-400"
+                              />
+
+                              <span className="line-clamp-2 text-sm font-medium text-slate-700">
+                                {title}
+                              </span>
+                            </button>
+                          );
+                        }
+                      )}
+
+                    </div>
+                  ) : (
+                    <div className="px-4 py-5 text-sm text-slate-500">
+                      Không tìm thấy khóa học phù hợp
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    className="w-full border-t border-slate-100 px-4 py-3 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
+                  >
+                    Xem tất cả kết quả cho "
+                    {keyword.trim()}"
+                  </button>
+
                 </div>
-
-                {loading ? (
-                  <div className="px-4 py-5 text-sm text-slate-500">
-                    Đang tìm kiếm...
-                  </div>
-                ) : suggestions.length > 0 ? (
-                  <div className="max-h-80 overflow-y-auto">
-                    {suggestions.map((course, index) => {
-                      const title =
-                        course.title ||
-                        course.courseTitle ||
-                        "Khóa học";
-
-                      return (
-                        <button
-                          key={course.courseId ?? course.id ?? index}
-                          type="button"
-                          onClick={() => handleSuggestionClick(course)}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-indigo-50 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-slate-400 text-[20px]">
-                            search
-                          </span>
-
-                          <span className="text-sm font-medium text-slate-700 line-clamp-2">
-                            {title}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="px-4 py-5 text-sm text-slate-500">
-                    Không tìm thấy khóa học phù hợp
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSearch}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border-t border-slate-100 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    search
-                  </span>
-                  Xem tất cả kết quả cho "{keyword.trim()}"
-                </button>
-              </div>
-            )}
+              )}
           </div>
 
-          {/* CÁC NÚT BÊN PHẢI */}
-          <div className="flex items-center gap-space-sm lg:gap-space-md flex-shrink-0">
+          {/* ========================================
+              RIGHT ACTIONS
+          ======================================== */}
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
 
             {/* THÔNG BÁO */}
             <button
-              aria-label="Thông báo"
-              className="relative p-space-sm rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors focus:outline-none"
               type="button"
+              aria-label="Thông báo"
+              className="relative rounded-full p-2 text-slate-600 transition hover:bg-slate-100 hover:text-blue-600"
             >
-              <span className="material-symbols-outlined text-[24px]">
-                notifications
-              </span>
+              <Bell size={22} />
 
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-error rounded-full ring-2 ring-surface-container-lowest" />
+              <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
             </button>
 
-            {/* TRỢ LÝ AI */}
-            <a
-              className="hidden sm:inline-flex items-center gap-space-xs px-3 py-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-fixed-dim transition-colors font-label-md text-label-md"
-              href="#"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                smart_toy
-              </span>
-              <span>Trợ lý AI</span>
-            </a>
+            {/* TRỢ LÝ AI - GIAO DIỆN */}
+            <span className="hidden items-center gap-1.5 rounded-full bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 lg:inline-flex">
+              <Bot size={17} />
+              Trợ lý AI
+            </span>
 
-            {/* PROFILE */}
-            <div className="relative group">
+            {/* ========================================
+                PROFILE
+            ======================================== */}
+
+            <div
+              ref={profileRef}
+              className="relative"
+            >
               <button
-                onClick={() => setProfileOpen((prev) => !prev)}
+                type="button"
+                onClick={() =>
+                  setProfileOpen(
+                    (previous) => !previous
+                  )
+                }
                 aria-expanded={profileOpen}
                 aria-haspopup="true"
-                className="flex items-center gap-space-xs p-1 rounded-full hover:bg-surface-container transition-colors focus:outline-none"
-                type="button"
+                className="flex items-center gap-2 rounded-full p-1 transition hover:bg-slate-100"
               >
-                <img
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHi4t6EzvBCeJMQWLU4uXSE1qyGan5XZq0H74MkCuxeZGJo40h5SQ6DZggL5lau6zQAEbJ0_rbLz0gaKubjCl3DnkLwstSRhtOgic3Y09rhTyEh8h_x4GJIe20KzAOGSkcPW3wMT2ZmEZPcAAeDG3KTDt0FYyGdYbJu-QV1zuF2nZrbYpxvWfv1_tYf6fINjo15GONdFx5AUegiUW9FbGudy"
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                  <UserRound size={21} />
+                </div>
+
+                <span className="hidden max-w-[110px] truncate text-sm font-semibold text-slate-700 lg:block">
+                  {isAuthenticated
+                    ? user?.fullName ||
+                      user?.username ||
+                      "Học viên"
+                    : "Tài khoản"}
+                </span>
+
+                <ChevronDown
+                  size={17}
+                  className={`text-slate-500 transition-transform ${
+                    profileOpen
+                      ? "rotate-180"
+                      : ""
+                  }`}
                 />
-
-                <span className="hidden lg:block font-label-lg text-label-lg text-on-surface max-w-[120px] truncate">
-                  Nguyễn Văn A
-                </span>
-
-                <span className="material-symbols-outlined text-outline text-[20px] group-hover:rotate-180 transition-transform duration-200">
-                  expand_more
-                </span>
               </button>
 
-              {/* DROPDOWN PROFILE */}
+              {/* PROFILE DROPDOWN */}
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-surface-container-lowest rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] border border-surface-variant py-2 z-50">
+                <div className="absolute right-0 top-full z-[60] mt-3 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
 
-                  <div className="px-4 py-2 border-b border-surface-variant lg:hidden">
-                    <p className="font-label-lg text-label-lg text-on-surface font-bold truncate">
-                      Nguyễn Văn A
-                    </p>
-                    <p className="font-label-sm text-label-sm text-outline truncate">
-                      student@edusmart.edu.vn
-                    </p>
-                  </div>
+                  {isAuthenticated ? (
+                    <>
+                      <div className="border-b border-slate-100 px-4 py-3">
 
-                  <a
-                    className="flex items-center gap-space-sm px-4 py-2.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
-                    href="#"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      person
-                    </span>
-                    <span>Hồ sơ cá nhân</span>
-                  </a>
+                        <p className="truncate text-sm font-bold text-slate-800">
+                          {user?.fullName ||
+                            user?.username}
+                        </p>
 
-                  <a
-                    className="flex items-center gap-space-sm px-4 py-2.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
-                    href="#"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      receipt_long
-                    </span>
-                    <span>Lịch sử thanh toán</span>
-                  </a>
+                        <p className="mt-1 truncate text-xs text-slate-500">
+                          @{user?.username}
+                        </p>
 
-                  <div className="my-1.5 border-t border-surface-variant" />
+                      </div>
 
-                  <a
-                    className="flex items-center gap-space-sm px-4 py-2.5 font-body-sm text-body-sm text-error hover:bg-error-container hover:text-on-error-container transition-colors"
-                    href="#"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      logout
-                    </span>
-                    <span>Đăng xuất</span>
-                  </a>
+                      <Link
+                        to="/student/my-courses"
+                        onClick={() =>
+                          setProfileOpen(false)
+                        }
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 transition hover:bg-blue-50"
+                      >
+                        <BookOpen size={18} />
+                        Khóa học của tôi
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                        className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {loggingOut ? (
+                          <LoaderCircle
+                            size={18}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <LogOut size={18} />
+                        )}
+
+                        Đăng xuất
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        onClick={() =>
+                          setProfileOpen(false)
+                        }
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-blue-50"
+                      >
+                        <LogIn size={18} />
+                        Đăng nhập
+                      </Link>
+
+                      <Link
+                        to="/register"
+                        onClick={() =>
+                          setProfileOpen(false)
+                        }
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-blue-50"
+                      >
+                        <UserPlus size={18} />
+                        Đăng ký
+                      </Link>
+                    </>
+                  )}
+
                 </div>
               )}
             </div>
 
-            {/* NÚT MENU MOBILE */}
+            {/* ========================================
+                MOBILE MENU BUTTON
+            ======================================== */}
+
             <button
-              onClick={() => setMenuOpen((prev) => !prev)}
+              type="button"
+              onClick={() =>
+                setMenuOpen(
+                  (previous) => !previous
+                )
+              }
               aria-label="Menu điều hướng"
               aria-expanded={menuOpen}
-              className="xl:hidden p-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container focus:outline-none"
-              type="button"
+              className="rounded-lg p-2 text-slate-700 transition hover:bg-slate-100 xl:hidden"
             >
-              <span className="material-symbols-outlined text-[26px]">
-                {menuOpen ? "close" : "menu"}
-              </span>
+              {menuOpen ? (
+                <X size={23} />
+              ) : (
+                <Menu size={23} />
+              )}
             </button>
+
           </div>
         </div>
       </header>
 
-      {/* MENU MOBILE */}
+      {/* ========================================
+          MOBILE MENU
+      ======================================== */}
+
       {menuOpen && (
-        <nav className="fixed top-20 left-0 right-0 z-40 bg-white shadow-lg p-5 flex flex-col gap-4 xl:hidden">
-          <Link
+        <nav className="fixed inset-x-0 top-20 z-40 flex flex-col gap-1 border-b border-slate-200 bg-white p-4 shadow-lg xl:hidden">
+
+          <NavLink
             to="/student"
-            onClick={closeMobileMenu}
+            end
+            onClick={() =>
+              setMenuOpen(false)
+            }
+            className="rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
           >
             Trang chủ
-          </Link>
+          </NavLink>
 
-          <Link
+          <NavLink
             to="/student/courses"
-            onClick={closeMobileMenu}
+            onClick={() =>
+              setMenuOpen(false)
+            }
+            className="rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
           >
             Khám phá khóa học
-          </Link>
+          </NavLink>
 
-          <a
-            href="#courses"
-            onClick={closeMobileMenu}
+          <button
+            type="button"
+            onClick={handleMyCourses}
+            className="rounded-lg px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50"
           >
             Khóa học của tôi
-          </a>
+          </button>
 
-          {/* TÌM KIẾM TRÊN MOBILE */}
+          {/* MOBILE SEARCH */}
           <form
-            onSubmit={(event) => {
-              handleSearch(event);
-              closeMobileMenu();
-            }}
-            className="md:hidden flex gap-2 pt-3 border-t border-slate-100"
+            onSubmit={handleSearch}
+            className="mt-2 flex gap-2 border-t border-slate-100 pt-3 md:hidden"
           >
             <input
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
               type="search"
+              value={keyword}
+              onChange={(event) =>
+                setKeyword(event.target.value)
+              }
               placeholder="Tìm kiếm khóa học..."
-              className="min-w-0 flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 text-sm"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
 
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium"
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Tìm
             </button>
           </form>
+
         </nav>
       )}
     </>

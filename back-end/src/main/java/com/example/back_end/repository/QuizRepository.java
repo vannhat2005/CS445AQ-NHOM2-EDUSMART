@@ -26,4 +26,20 @@ public interface QuizRepository
           AND q.lesson IS NULL
     """)
     long countChapterTests(@Param("id") Integer id);
+
+
+    // Tổng Quiz thường + Quiz cuối chương của một khóa học
+    @Query("""
+        SELECT COUNT(DISTINCT q.quizId)
+        FROM Quiz q
+        LEFT JOIN q.lesson l
+        LEFT JOIN l.chapter lessonChapter
+        LEFT JOIN q.chapter finalChapter
+        WHERE lessonChapter.course.courseId = :courseId
+           OR finalChapter.course.courseId = :courseId
+    """)
+    long countQuizzesByCourseId(
+            @Param("courseId") Integer courseId
+    );
+
 }

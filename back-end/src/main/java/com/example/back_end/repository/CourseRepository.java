@@ -120,4 +120,22 @@ public interface CourseRepository
             @Param("registrationStatus") RegistrationStatus registrationStatus,
             Pageable pageable
     );
+
+
+    @Query("""
+    SELECT c
+    FROM Course c
+    WHERE c.status = :courseStatus
+      AND c.category.status = TRUE
+      AND (
+          :categoryId IS NULL
+          OR c.category.categoryId = :categoryId
+      )
+    """)
+    Page<Course> findHomeCourses(
+            @Param("courseStatus") CourseStatus courseStatus,
+            @Param("categoryId") Integer categoryId,
+            Pageable pageable
+    );
+
 }

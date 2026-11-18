@@ -1,4 +1,4 @@
 package com.example.back_end.service;
 
-public class CategoryService {
+public interface CategoryService {
 }

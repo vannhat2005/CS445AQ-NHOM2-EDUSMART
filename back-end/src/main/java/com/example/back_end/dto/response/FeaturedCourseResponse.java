@@ -1,5 +1,5 @@
-package com.example.back_end.dto.response;
 
+package com.example.back_end.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +23,11 @@ public class FeaturedCourseResponse {
     private String imageUrl;
 
     private BigDecimal price;
+
+    // Thêm 2 thuộc tính này
+    private Integer categoryId;
+
+    private String categoryName;
 
     private String instructorName;
 

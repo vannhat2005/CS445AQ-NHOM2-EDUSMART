@@ -3,39 +3,46 @@ package com.example.back_end.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 public class CorsConfig {
 
     @Bean
-    public WebMvcConfigurer corsConfigurer() {
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
 
-        return new WebMvcConfigurer() {
+        CorsConfiguration config = new CorsConfiguration();
 
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
+        config.setAllowedOrigins(
+                List.of("http://localhost:5173")
+        );
 
-                registry.addMapping("/api/**")
+        config.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
 
-                        // Cho phép Frontend truy cập
-                        .allowedOrigins("http://localhost:5173")
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type"
+        ));
 
-                        // Các phương thức HTTP được phép
-                        .allowedMethods(
-                                "GET",
-                                "POST",
-                                "PUT",
-                                "DELETE",
-                                "PATCH",
-                                "OPTIONS"
-                        )
+        config.setAllowCredentials(true);
 
-                        // Cho phép các Header
-                        .allowedHeaders("*");
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
 
-            }
-        };
+        source.registerCorsConfiguration("/**", config);
+
+        return source;
     }
 }

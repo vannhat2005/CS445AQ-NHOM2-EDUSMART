@@ -1,3 +1,4 @@
+
 spring:
   application:
     name: back-end
@@ -20,3 +21,13 @@ spring:
 
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: Vt9Lh5dElsYKGt4zm2kd0Za9nKfJrCfxFThXTBhshDc=
+    expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+
+  cookie:
+    secure: false
+    same-site: Lax
