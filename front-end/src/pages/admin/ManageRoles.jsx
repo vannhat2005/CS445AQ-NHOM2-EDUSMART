@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { CircleCheck } from "lucide-react";
 import toast from 'react-hot-toast';
 import { ShieldCheck, Shield, GraduationCap, BookOpen, Search, RotateCcw, Users, Save, X, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, ArrowRight, ClipboardList, RefreshCw } from 'lucide-react';
 import { roleService, getRoleError } from '../../services/adminRoleApi';
@@ -113,9 +114,24 @@ const ManageRoles = () => {
             <p className="text-sm text-slate-500 mt-1">Quản lý vai trò và quyền truy cập của người dùng trong hệ thống EduSmart.</p>
           </div>
         </div>
-        <button type="button" onClick={handleRefresh} disabled={loading || saving} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
-          <RefreshCw size={17} className={loading ? 'animate-spin' : ''} /> Làm mới dữ liệu
-        </button>
+        
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Shield size={17} className="text-slate-500" />
+            Thử lỗi bảo mật
+          </button>
+
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <CircleCheck size={17} className="text-emerald-500" />
+            Thử Toast Thành Công
+          </button>
+        </div>
       </div>
 
       {/* Tìm kiếm và bộ lọc */}
