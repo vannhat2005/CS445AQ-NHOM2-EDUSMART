@@ -24,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -249,34 +250,55 @@ public class AdminCourseServiceImpl implements AdminCourseService {
     }
 
     // Kiểm tra và gán giảng viên, danh mục
+
+    // Kiểm tra và gán giảng viên, danh mục
     private void assignRelations(Course course, Integer instructorId, Integer categoryId) {
-        User instructor = entityManager.find(User.class, instructorId);
 
-        if (instructor == null) {
+        // Kiểm tra giảng viên
+        if (instructorId == null) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Giảng viên không tồn tại"
-            );
+                    HttpStatus.BAD_REQUEST, "Giảng viên không được để trống");
         }
 
-        if (instructor.getRole() == null ||
-                !"Instructor".equalsIgnoreCase(instructor.getRole().getRoleName())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Người dùng được chọn không phải giảng viên"
-            );
+        // Chỉ kiểm tra khi tạo mới hoặc thay đổi giảng viên
+        if (course.getInstructor() == null ||
+                !Objects.equals(course.getInstructor().getUserId(), instructorId)) {
+
+            User instructor = entityManager.find(User.class, instructorId);
+
+            if (instructor == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Giảng viên không tồn tại");
+            }
+
+            if (instructor.getRole() == null ||
+                    !"Instructor".equalsIgnoreCase(instructor.getRole().getRoleName())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Người dùng được chọn không phải giảng viên");
+            }
+
+            course.setInstructor(instructor);
         }
 
-        Category category = entityManager.find(Category.class, categoryId);
-
-        if (category == null) {
+        // Kiểm tra danh mục
+        if (categoryId == null) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Danh mục không tồn tại"
-            );
+                    HttpStatus.BAD_REQUEST, "Danh mục không được để trống");
         }
 
-        course.setInstructor(instructor);
-        course.setCategory(category);
+        // Chỉ kiểm tra khi tạo mới hoặc thay đổi danh mục
+        if (course.getCategory() == null ||
+                !Objects.equals(course.getCategory().getCategoryId(), categoryId)) {
+
+            Category category = entityManager.find(Category.class, categoryId);
+
+            if (category == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Danh mục không tồn tại");
+            }
+
+            course.setCategory(category);
+        }
     }
+
 }

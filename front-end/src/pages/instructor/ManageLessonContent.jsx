@@ -521,12 +521,7 @@ const ManageLessonContent = () => {
 
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setPreviewContent(item)}
-                          className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium"
-                        >
-                          Xem
-                        </button>
+                        
 
                         <button
                           onClick={() => handleOpenEdit(item)}

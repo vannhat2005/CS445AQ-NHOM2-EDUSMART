@@ -26,6 +26,22 @@ spring:
       max-file-size: 200MB
       max-request-size: 210MB
 
+  # Cấu hình gửi Email OTP bằng Gmail
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 # Thư mục lưu video và PDF của bài học
 app:
   upload-dir: uploads/lesson-contents
@@ -33,6 +49,10 @@ app:
     secret: Vt9Lh5dElsYKGt4zm2kd0Za9nKfJrCfxFThXTBhshDc=
     expiration-ms: 900000
     refresh-expiration-ms: 604800000
+
+  # Khóa ký token đặt lại mật khẩu sau khi xác thực OTP
+  password-reset:
+    secret: nlqggzuwndhzvencqkwvdntwyqrddcygykkhsmyhyifcpsynuxdjvvjeeojdxzzy
 
   cookie:
     secure: false
