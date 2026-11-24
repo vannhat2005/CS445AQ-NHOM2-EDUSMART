@@ -416,6 +416,11 @@ const ManageLessons = () => {
 
                             <Link
                               to={`/instructor/courses/${courseId}/chapters/${chapterId}/lessons/${lesson.lessonId}`}
+                              state={{
+                                courseTitle,
+                                chapterTitle,
+                                lessonTitle: lesson.title
+                              }}
                               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium"
                             >
                               <span className="material-symbols-outlined text-[16px]">

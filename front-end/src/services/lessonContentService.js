@@ -1,9 +1,28 @@
 
+import api, { getAccessToken } from './api';
 import api from "./api";
 
 const unwrap = (response) => response.data?.result ?? response.data;
 
 export const getLessonContentFileUrl = (path) => {
+  if (!path) return '';
+  let fullUrl = path;
+  if (!/^https?:\/\//i.test(path)) {
+    fullUrl = `http://localhost:8080${path.startsWith('/') ? '' : '/'}${path}`;
+  }
+  const token = getAccessToken();
+  if (token) {
+    try {
+      const u = new URL(fullUrl);
+      if (!u.searchParams.has('token')) {
+        u.searchParams.set('token', token);
+      }
+      return u.href;
+    } catch {
+      return fullUrl;
+    }
+  }
+  return fullUrl;
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
   const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/+$/, "");

@@ -82,7 +82,7 @@ public class ExploreCourseServiceImpl implements ExploreCourseService {
         String normalizedKeyword =
                 keyword == null || keyword.isBlank()
                         ? null
-                        : keyword.trim().toLowerCase(Locale.ROOT);
+                        : keyword.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
 
         // 5. Chuẩn hóa kiểu sắp xếp
         String sortKey =
@@ -284,7 +284,7 @@ public class ExploreCourseServiceImpl implements ExploreCourseService {
                     .replace("%", "\\%")
                     .replace("_", "\\_");
 
-            String pattern = "%" + escapedKeyword + "%";
+            String pattern = "%" + escapedKeyword.replaceAll("\\s+", "%") + "%";
 
             Predicate titlePredicate =
                     cb.like(

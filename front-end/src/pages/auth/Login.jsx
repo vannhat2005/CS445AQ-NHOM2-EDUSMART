@@ -71,7 +71,7 @@ const canAccessPath = (path, role) => {
     path === "/student" ||
     path.startsWith("/student/")
   ) {
-    return true;
+    return normalized === "STUDENT";
   }
 
   return false;

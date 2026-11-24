@@ -118,7 +118,7 @@ export const searchCourses = async (
       "/courses/search",
       {
         params: {
-          keyword: String(keyword ?? "").trim(),
+          keyword: String(keyword ?? "").trim().replace(/\s+/g, " "),
           pageNo,
           pageSize,
         },

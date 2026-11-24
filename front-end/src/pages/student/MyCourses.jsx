@@ -1,11 +1,11 @@
 
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 
 import MyCourseCard from "../../components/student/MyCourseCard";
-import { getMyCourses } from "../../services/student/myCourseService";
+import { getMyCourses, getMyCourseSummary } from "../../services/student/myCourseService";
 
 
 
@@ -77,11 +77,66 @@ export default function MyCourses() {
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Chờ người dùng ngừng gõ 350ms mới gọi API.
+  // Thống kê tổng quan cố định (tất cả khóa học của học viên)
+  const [summary, setSummary] = useState({
+    total: 0,
+    inProgress: 0,
+    completed: 0,
+    notStarted: 0,
+  });
+
+  // Tham chiếu vùng danh sách khóa học để cuộn mượt không giật
+  const courseSectionRef = useRef(null);
+
+  // Chờ người dùng ngừng gõ 350ms mới gọi API (chuẩn hóa khoảng trắng dư thừa)
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedKeyword(searchKeyword.trim()), 350);
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(searchKeyword.trim().replace(/\s+/g, " "));
+    }, 350);
     return () => clearTimeout(timer);
   }, [searchKeyword]);
+
+  // Lấy thống kê tổng quan cố định khi load trang hoặc reload
+  useEffect(() => {
+    let active = true;
+
+    const fetchSummary = async () => {
+      try {
+        const data = await getMyCourseSummary();
+        if (active && data) {
+          setSummary({
+            total: Number(data.total) || 0,
+            inProgress: Number(data.inProgress) || 0,
+            completed: Number(data.completed) || 0,
+            notStarted: Number(data.notStarted) || 0,
+          });
+        }
+      } catch (err) {
+        console.error("[MyCourses] Lỗi khi tải thống kê tổng quan:", err);
+      }
+    };
+
+    fetchSummary();
+
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  // Dự phòng: cập nhật tổng khóa học nếu summary chưa kịp lấy
+  useEffect(() => {
+    if (
+      activeFilter === "ALL" &&
+      !debouncedKeyword &&
+      pageData.totalElements > 0 &&
+      summary.total === 0
+    ) {
+      setSummary((prev) => ({
+        ...prev,
+        total: pageData.totalElements,
+      }));
+    }
+  }, [pageData.totalElements, activeFilter, debouncedKeyword, summary.total]);
 
   // ==========================================
   // 1. GỌI API BACKEND
@@ -135,24 +190,6 @@ export default function MyCourses() {
   // ==========================================
   const courses = pageData.content || [];
 
-  // ==========================================
-  // 3. THỐNG KÊ TRANG HIỆN TẠI
-  // ==========================================
-  const inProgressCount = courses.filter(
-    (course) =>
-      course.learningStatus === "IN_PROGRESS"
-  ).length;
-
-  const completedCount = courses.filter(
-    (course) =>
-      course.learningStatus === "COMPLETED"
-  ).length;
-
-  const notStartedCount = courses.filter(
-    (course) =>
-      course.learningStatus === "NOT_STARTED"
-  ).length;
-
   // Backend đã lọc, tìm kiếm, sắp xếp và phân trang.
   // Không lọc lại trên 6 khóa học của trang hiện tại.
   const filteredCourses = courses;
@@ -193,22 +230,30 @@ export default function MyCourses() {
   };
 
   // ==========================================
-  // 6. ĐỔI TRANG
+  // 6. ĐỔI TRANG (KHÔNG GIẬT LÊN ĐỈNH TRANG)
   // ==========================================
   const handleChangePage = (newPage) => {
     if (
       newPage < 1 ||
-      newPage > pageData.totalPages
+      newPage > pageData.totalPages ||
+      newPage === pageNo
     ) {
       return;
     }
 
     setPageNo(newPage);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // Chỉ cuộn nhẹ nhàng đến đầu danh sách khóa học nếu người dùng đang ở quá thấp
+    // KHÔNG dùng window.scrollTo({ top: 0 }) vì sẽ giật mạnh lên tận đỉnh trang
+    if (courseSectionRef.current) {
+      const rect = courseSectionRef.current.getBoundingClientRect();
+      if (rect.top < 80) {
+        courseSectionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }
   };
 
   // ==========================================
@@ -247,26 +292,26 @@ export default function MyCourses() {
               <StatCard
                 icon="📚"
                 title="Tổng khóa học"
-                value={activeFilter === "ALL" && !debouncedKeyword ? pageData.totalElements || 0 : "—"}
+                value={summary.total}
               />
 
               <StatCard
-                icon="▶️"
-                title="Đang học (trang này)"
-                value={inProgressCount}
+                icon="⏳"
+                title="Đang học"
+                value={summary.inProgress}
               />
 
               <StatCard
                 icon="🏆"
-                title="Hoàn thành (trang này)"
-                value={completedCount}
+                title="Hoàn thành"
+                value={summary.completed}
               />
             </div>
           </div>
         </section>
 
         {/* ================= TOOLBAR ================= */}
-        <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+        <section ref={courseSectionRef} className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
 
           {/* Tabs */}
           <div className="flex flex-wrap gap-2 rounded-xl bg-slate-100 p-1">
@@ -274,13 +319,13 @@ export default function MyCourses() {
               let count = 0;
 
               if (filter.key === "ALL") {
-                count = activeFilter === "ALL" ? pageData.totalElements || 0 : null;
+                count = summary.total;
               } else if (filter.key === "IN_PROGRESS") {
-                count = activeFilter === "IN_PROGRESS" ? pageData.totalElements : null;
+                count = summary.inProgress;
               } else if (filter.key === "COMPLETED") {
-                count = activeFilter === "COMPLETED" ? pageData.totalElements : null;
+                count = summary.completed;
               } else {
-                count = activeFilter === "NOT_STARTED" ? pageData.totalElements : null;
+                count = summary.notStarted;
               }
 
               return (
@@ -296,7 +341,7 @@ export default function MyCourses() {
                   {filter.label}
 
                   <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
-                    {count === null ? "—" : count}
+                    {count}
                   </span>
                 </button>
               );
@@ -364,18 +409,18 @@ export default function MyCourses() {
         ) : loading ? (
 
           /* ================= LOADING ================= */
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-h-[420px]">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-96 animate-pulse rounded-2xl bg-slate-200"
+                className="h-[360px] animate-pulse rounded-2xl bg-slate-200/80"
               />
             ))}
           </div>
         ) : filteredCourses.length > 0 ? (
 
           /* ================= COURSE GRID ================= */
-          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-h-[420px]">
             {filteredCourses.map((course) => (
               <MyCourseCard
                 key={course.courseId}

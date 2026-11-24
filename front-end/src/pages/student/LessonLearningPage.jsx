@@ -91,8 +91,36 @@ export default function LessonLearningPage() {
   const quizzes = lesson?.quizzes || [];
   const currentVideo = videos.find((v) => v.contentId === selectedVideoId) || videos[0];
   const currentPdf = pdfs.find((p) => p.contentId === selectedPdfId) || pdfs[0];
-  const videoUrl = safeUrl(currentVideo?.contentData);
-  const pdfUrl = safeUrl(currentPdf?.contentData);
+  const videoUrl = useMemo(() => {
+    const raw = safeUrl(currentVideo?.contentData);
+    if (!raw) return null;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return raw;
+    try {
+      const u = new URL(raw);
+      if (!u.searchParams.has("token")) {
+        u.searchParams.set("token", token);
+      }
+      return u.href;
+    } catch {
+      return raw;
+    }
+  }, [currentVideo?.contentData]);
+  const pdfUrl = useMemo(() => {
+    const raw = safeUrl(currentPdf?.contentData);
+    if (!raw) return null;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return raw;
+    try {
+      const u = new URL(raw);
+      if (!u.searchParams.has("token")) {
+        u.searchParams.set("token", token);
+      }
+      return u.href;
+    } catch {
+      return raw;
+    }
+  }, [currentPdf?.contentData]);
   const flatLessons = chapters.flatMap((c) => c.lessons);
   const currentIndex = flatLessons.findIndex((l) => String(l.id) === String(lessonId));
   const previous = currentIndex > 0 ? flatLessons[currentIndex - 1] : null;
@@ -191,7 +219,7 @@ export default function LessonLearningPage() {
               {pdfs.length ? <><div className="flex flex-wrap gap-2">{pdfs.map((p) => <button key={p.contentId} onClick={() => setSelectedPdfId(p.contentId)} className={cx(styles.tab, currentPdf?.contentId === p.contentId ? "bg-blue-100 text-blue-800" : "bg-slate-100")}>📄 {p.title}</button>)}</div>
                 {pdfUrl ? <><div className="flex justify-end"><a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Mở / tải PDF</a></div><iframe title={currentPdf?.title || "Tài liệu PDF"} src={pdfUrl} className="h-[550px] w-full rounded-xl border border-slate-200" /></> : <p>Đường dẫn PDF không hợp lệ.</p>}</> : <p className="text-slate-500">Bài học chưa có tài liệu PDF.</p>}
             </div>}
-            {tab === "quiz" && <div className="space-y-3">{quizzes.length ? quizzes.map((q) => <div key={q.quizId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><p className="text-xs font-semibold text-blue-700">Trắc nghiệm</p><h3 className="font-semibold">{q.title}</h3></div><span className="text-sm text-slate-500">Chưa kết nối API làm bài Quiz</span></div>) : <p className="text-slate-500">Bài học chưa có bài tập.</p>}</div>}
+            {tab === "quiz" && <div className="space-y-3">{quizzes.length ? quizzes.map((q) => <div key={q.quizId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 hover:border-blue-300 transition-all bg-white shadow-2xs"><div><span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 mb-1">Trắc nghiệm</span><h3 className="font-bold text-slate-900">{q.title}</h3></div><button onClick={() => navigate(`/student/courses/${courseId}/lessons/${lessonId}/quiz/${q.quizId}`)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm hover:shadow transition-all cursor-pointer"><span className="material-symbols-outlined text-[18px]">play_arrow</span><span>Bắt đầu làm</span></button></div>) : <p className="text-slate-500">Bài học chưa có bài tập.</p>}</div>}
             {tab === "notes" && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Chức năng lưu ghi chú cần bổ sung API Backend. Hiện chưa hỗ trợ lưu ghi chú vào Database.</p>}
           </div>
         </section>

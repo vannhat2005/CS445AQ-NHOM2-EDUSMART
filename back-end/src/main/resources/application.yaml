@@ -3,12 +3,18 @@ spring:
   application:
     name: back-end
 
+  # ==========================================
+  # 1. MYSQL DATABASE
+  # ==========================================
   datasource:
     url: jdbc:mysql://localhost:3306/edusmart_db
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # ==========================================
+  # 2. JPA / HIBERNATE
+  # ==========================================
   jpa:
     show-sql: true
     hibernate:
@@ -19,13 +25,24 @@ spring:
       hibernate:
         format_sql: true
 
-  # Cấu hình upload video và PDF
+  # ==========================================
+  # 3. UPLOAD VIDEO / PDF
+  # ==========================================
   servlet:
     multipart:
       enabled: true
       max-file-size: 200MB
       max-request-size: 210MB
 
+  # ==========================================
+  # 4. SANDBOX PROFILE
+  # ==========================================
+  profiles:
+    active: sandbox
+
+# ==========================================
+# 5. APP CONFIGURATION
+# ==========================================
   # Cấu hình gửi Email OTP bằng Gmail
   mail:
     host: smtp.gmail.com
@@ -45,8 +62,12 @@ spring:
 # Thư mục lưu video và PDF của bài học
 app:
   upload-dir: uploads/lesson-contents
+  upload:
+    images-dir: uploads/images
+    videos-dir: uploads/videos
+
   jwt:
-    secret: Vt9Lh5dElsYKGt4zm2kd0Za9nKfJrCfxFThXTBhshDc=
+    secret: "RGyivbOAwSDYdNNTwhf0xX4COpkPyslqWMmB1cgB47t"
     expiration-ms: 900000
     refresh-expiration-ms: 604800000
 
@@ -57,7 +78,40 @@ app:
   cookie:
     secure: false
     same-site: Lax
+
+# ==========================================
+# 6. SERVER
+# ==========================================
 server:
   port: 8080
+  address: 0.0.0.0
 
+# ==========================================
+# 7. ZALOPAY SANDBOX (API V2)
+# ==========================================
+zalopay:
+  app-id: 553
+  key1: 9phuAOYhan4urywHTh0ndEXiV3pKHr5Q
+  key2: Iyz2habzyr7AG8SgvoBCbKwKi3UzlLi3
 
+  create-url: https://sb-openapi.zalopay.vn/v2/create
+  query-url: https://sb-openapi.zalopay.vn/v2/query
+
+  callback-url: ""
+  redirect-url: http://localhost:5173/student/payment/result
+
+# ==========================================
+# 8. MOMO SANDBOX (API V2)
+# ==========================================
+momo:
+  partner-code: "MOMO"
+  access-key: "F8BBA842ECF85"
+  secret-key: "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+
+  create-url: https://test-payment.momo.vn/v2/gateway/api/create
+  query-url: https://test-payment.momo.vn/v2/gateway/api/query
+
+  redirect-url: http://localhost:5173/student/payment/result
+
+  # Thay xxxx bằng địa chỉ ngrok đang chạy
+  ipn-url: https://xxxx.ngrok-free.app/api/payments/momo/ipn

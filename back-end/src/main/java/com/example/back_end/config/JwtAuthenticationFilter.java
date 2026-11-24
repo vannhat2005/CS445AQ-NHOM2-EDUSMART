@@ -36,20 +36,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        String token = null;
         String header = request.getHeader("Authorization");
 
         log.info("JWT request: {}", request.getRequestURI());
 
-        // 1. Kiểm tra Authorization Header
-        if (header == null || !header.startsWith("Bearer ")) {
+        // 1. Lấy Bearer Token từ Header
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.substring(7).trim();
+        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+            // Hỗ trợ token qua query parameter cho thẻ <video src="..."> và stream media
+            token = request.getParameter("token").trim();
+        } else if (request.getCookies() != null) {
+            // Hỗ trợ token từ cookie nếu có
+            for (var cookie : request.getCookies()) {
+                if ("accessToken".equals(cookie.getName()) || "token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
 
-            log.warn("JWT: Không tìm thấy Bearer Token");
-
+        if (token == null || token.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = header.substring(7).trim();
 
         // 2. Kiểm tra Token
         if (!jwtTokenProvider.validateToken(token)) {

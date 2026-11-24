@@ -2,6 +2,7 @@
 package com.example.back_end.service;
 
 import com.example.back_end.dto.response.MyCourseResponse;
+import com.example.back_end.dto.response.MyCourseSummaryResponse;
 import com.example.back_end.dto.response.PageResponse;
 
 public interface MyCourseService {
@@ -18,4 +19,6 @@ public interface MyCourseService {
             String keyword,
             String sortBy
     );
+
+    MyCourseSummaryResponse getMyCourseSummary();
 }

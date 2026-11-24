@@ -8,13 +8,15 @@ import {
   Route,
   Navigate,
   useParams,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
 
 // ==========================================
 // AUTH CONTEXT
 // ==========================================
 
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // ==========================================
 // AUTH PAGES
@@ -57,8 +59,14 @@ import CourseCatalog from "./pages/student/CourseCatalog";
 import CourseDetailPage from "./pages/student/CourseDetailPage";
 import MyCourses from "./pages/student/MyCourses";
 
-// Trang học bài
+// TRANG THANH TOÁN MOMO / ZALOPAY
+import CheckoutPage from "./pages/student/CheckoutPage";
+
+// TRANG HỌC BÀI
 import LessonLearningPage from "./pages/student/LessonLearningPage";
+
+// TRANG THI TRẮC NGHIỆM QUIZ
+import QuizExamPage from "./pages/student/QuizExamPage";
 
 // ==========================================
 // ADMIN PAGES
@@ -85,7 +93,62 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 function StudentCourseDetailRoute() {
   const { courseId } = useParams();
 
-  return <CourseDetailPage courseId={courseId} />;
+  return (
+    <CourseDetailPage
+      courseId={courseId}
+    />
+  );
+}
+
+// ==========================================
+// STUDENT CHECKOUT ROUTE
+// ==========================================
+
+function StudentCheckoutRoute() {
+  const { courseId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const id = Number(courseId);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return <Navigate to="/student/courses" replace />;
+  }
+
+  return (
+    <CheckoutPage
+      courseId={id}
+      course={location.state?.course}
+      onBack={() => navigate(`/student/courses/${id}`)}
+      onPaid={() =>
+        navigate("/student/my-courses", { replace: true })
+      }
+    />
+  );
+}
+
+// ==========================================
+// ĐIỀU HƯỚNG TỰ ĐỘNG THEO ROLE TẠI TRANG CHỦ / VÀ 404
+// ==========================================
+
+function RoleBasedRedirect() {
+  const { isAuthenticated, loading, isInstructor, isAdmin } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    if (isAdmin) {
+      return <Navigate to="/admin" replace />;
+    }
+    if (isInstructor) {
+      return <Navigate to="/instructor" replace />;
+    }
+    return <Navigate to="/student" replace />;
+  }
+
+  return <Navigate to="/student" replace />;
 }
 
 // ==========================================
@@ -95,6 +158,7 @@ function StudentCourseDetailRoute() {
 function AppRoutes() {
   return (
     <Routes>
+
       {/* =====================================
           AUTH
       ===================================== */}
@@ -129,6 +193,7 @@ function AppRoutes() {
           path="/instructor"
           element={<InstructorLayout />}
         >
+
           <Route
             index
             element={<InstructorDashboard />}
@@ -178,6 +243,7 @@ function AppRoutes() {
             path="reports"
             element={<InstructorReports />}
           />
+
         </Route>
       </Route>
 
@@ -196,6 +262,7 @@ function AppRoutes() {
           path="/admin"
           element={<AdminLayout />}
         >
+
           <Route
             index
             element={<AdminDashboard />}
@@ -230,6 +297,7 @@ function AppRoutes() {
             path="reports"
             element={<AdminReports />}
           />
+
         </Route>
       </Route>
 
@@ -241,6 +309,7 @@ function AppRoutes() {
         path="/student"
         element={<StudentLayout />}
       >
+
         {/* =================================
             PUBLIC STUDENT PAGES
         ================================= */}
@@ -276,7 +345,33 @@ function AppRoutes() {
             />
           }
         >
-          {/* KHÓA HỌC CỦA TÔI */}
+
+          {/* =================================
+              TRANG THANH TOÁN
+
+              URL:
+              /student/courses/:courseId/checkout
+
+              Sau khi xác nhận thanh toán, backend tạo
+              đăng ký Pending và trả registrationId.
+
+              MOMO:
+              POST /api/student/checkout/
+              {registrationId}/pay/momo
+
+              ZALOPAY:
+              POST /api/student/checkout/
+              {registrationId}/pay/zalopay
+          ================================= */}
+
+          <Route
+            path="courses/:courseId/checkout"
+            element={<StudentCheckoutRoute />}
+          />
+
+          {/* =================================
+              KHÓA HỌC CỦA TÔI
+          ================================= */}
 
           <Route
             path="my-courses"
@@ -285,6 +380,7 @@ function AppRoutes() {
 
           {/* =================================
               TRANG HỌC BÀI
+
               GET:
               /api/student/courses/
               {courseId}/lessons/{lessonId}
@@ -294,6 +390,24 @@ function AppRoutes() {
             path="courses/:courseId/lessons/:lessonId"
             element={<LessonLearningPage />}
           />
+
+          {/* =================================
+              TRANG LÀM BÀI TRẮC NGHIỆM QUIZ
+              GET: /api/student/quizzes/{quizId}
+          ================================= */}
+          <Route
+            path="courses/:courseId/lessons/:lessonId/quiz/:quizId"
+            element={<QuizExamPage />}
+          />
+          <Route
+            path="courses/:courseId/quiz/:quizId"
+            element={<QuizExamPage />}
+          />
+          <Route
+            path="quiz/:quizId"
+            element={<QuizExamPage />}
+          />
+
         </Route>
       </Route>
 
@@ -303,23 +417,14 @@ function AppRoutes() {
 
       <Route
         path="/"
-        element={
-          <Navigate
-            to="/student"
-            replace
-          />
-        }
+        element={<RoleBasedRedirect />}
       />
 
       <Route
         path="*"
-        element={
-          <Navigate
-            to="/student"
-            replace
-          />
-        }
+        element={<RoleBasedRedirect />}
       />
+
     </Routes>
   );
 }
@@ -332,6 +437,7 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
+
         {/* =================================
             TOAST NOTIFICATIONS
         ================================= */}
@@ -374,6 +480,7 @@ export default function App() {
         ================================= */}
 
         <AppRoutes />
+
       </AuthProvider>
     </Router>
   );

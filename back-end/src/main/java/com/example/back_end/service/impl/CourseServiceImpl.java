@@ -211,10 +211,14 @@ public class CourseServiceImpl implements CourseService {
                 pageSize
         );
 
-        String searchKeyword =
-                keyword == null || keyword.isBlank()
-                        ? null
-                        : keyword.trim();
+        String searchKeyword = null;
+        if (keyword != null && !keyword.isBlank()) {
+            String cleaned = keyword.trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+            searchKeyword = cleaned.replaceAll("\\s+", "%");
+        }
 
         Page<Course> coursePage =
                 courseRepository.searchCourses(

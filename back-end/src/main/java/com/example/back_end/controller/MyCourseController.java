@@ -3,6 +3,7 @@ package com.example.back_end.controller;
 
 import com.example.back_end.dto.response.ApiResponse;
 import com.example.back_end.dto.response.MyCourseResponse;
+import com.example.back_end.dto.response.MyCourseSummaryResponse;
 import com.example.back_end.dto.response.PageResponse;
 import com.example.back_end.service.MyCourseService;
 
@@ -81,6 +82,27 @@ public class MyCourseController {
                 .message(
                         "Lấy danh sách khóa học của tôi thành công"
                 )
+                .result(result)
+                .build();
+    }
+
+    /**
+     * API lấy thống kê tổng quan số lượng khóa học cố định của học viên:
+     * - total: Tổng số khóa học đã mua
+     * - inProgress: Số khóa học đang học
+     * - completed: Số khóa học đã hoàn thành
+     * - notStarted: Số khóa học chưa bắt đầu
+     *
+     * GET /api/student/my-courses/summary
+     */
+    @GetMapping("/summary")
+    public ApiResponse<MyCourseSummaryResponse> getMyCourseSummary() {
+        MyCourseSummaryResponse result = myCourseService.getMyCourseSummary();
+
+        return ApiResponse
+                .<MyCourseSummaryResponse>builder()
+                .code(1000)
+                .message("Lấy thống kê khóa học thành công")
                 .result(result)
                 .build();
     }
