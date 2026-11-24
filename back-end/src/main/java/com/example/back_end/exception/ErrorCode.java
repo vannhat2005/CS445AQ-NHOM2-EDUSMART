@@ -19,7 +19,10 @@ public enum ErrorCode {
     // 1. MODULE USER - QUẢN LÝ NGƯỜI DÙNG
     // (1000 - 1099)
     // ==========================================
-
+    ACCOUNT_NOT_FOUND(1001, "Không tìm thấy tài khoản", HttpStatus.NOT_FOUND),
+    USERNAME_EXISTED(1002, "Tên đăng nhập đã tồn tại", HttpStatus.CONFLICT),
+    EMAIL_EXISTED(1003, "Email này đã tồn tại", HttpStatus.CONFLICT),
+    PASSWORD_TOO_SHORT(1004, "Mật khẩu phải có ít nhất 8 ký tự", HttpStatus.BAD_REQUEST),
     ROLE_USER_NOT_FOUND(1101, "Không tìm thấy người dùng", HttpStatus.NOT_FOUND),
     ROLE_NOT_FOUND(1102, "Vai trò không hợp lệ", HttpStatus.BAD_REQUEST),
     ROLE_NO_CHANGES(1103, "Không có thay đổi nào để lưu", HttpStatus.BAD_REQUEST),
@@ -28,6 +31,33 @@ public enum ErrorCode {
 
     // TODO: Bổ sung lỗi đăng ký, đăng nhập và quản lý người dùng
 
+    // MODULE QUÊN MẬT KHẨU (1200 - 1299)
+    PASSWORD_RESET_OTP_INVALID(
+            1200, "Mã OTP không hợp lệ, yêu cầu nhập lại",
+            HttpStatus.BAD_REQUEST
+    ),
+    PASSWORD_RESET_OTP_EXPIRED(
+            1201, "Mã OTP đã hết hạn",
+            HttpStatus.BAD_REQUEST
+    ),
+    PASSWORD_RESET_TOKEN_INVALID(
+            1202, "Phiên đổi mật khẩu không hợp lệ hoặc đã hết hạn",
+            HttpStatus.BAD_REQUEST
+    ),
+    PASSWORD_RESET_PASSWORD_INVALID(
+            1203, "Mật khẩu phải có ít nhất 8 ký tự",
+            HttpStatus.BAD_REQUEST
+    ),
+    PASSWORD_RESET_PASSWORD_MISMATCH(
+            1204, "Mật khẩu xác nhận không khớp",
+            HttpStatus.BAD_REQUEST
+    ),
+    PASSWORD_RESET_OTP_ATTEMPTS_EXCEEDED(
+            1205, "Bạn đã nhập sai OTP quá 5 lần. Vui lòng yêu cầu mã mới",
+            HttpStatus.TOO_MANY_REQUESTS
+    ),
+    PASSWORD_RESET_SAME_AS_OLD(1206, "Mật khẩu mới không được trùng với mật khẩu hiện tại", HttpStatus.BAD_REQUEST),
+    EMAIL_NOT_REGISTERED(1207, "Email này chưa được đăng ký trong hệ thống", HttpStatus.BAD_REQUEST),
 
     // ==========================================
     // 2. MODULE ROLE & AUTHENTICATION

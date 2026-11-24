@@ -78,7 +78,13 @@ public class SecurityConfig {
                                 "/api/users/register",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
-                                "/api/auth/logout"
+                                "/api/auth/logout",
+
+                                // Các API quên mật khẩu không yêu cầu đăng nhập
+                                "/api/auth/forgot-password",
+                                "/api/auth/resend-otp",
+                                "/api/auth/verify-otp",
+                                "/api/auth/reset-password"
                         ).permitAll()
 
                         // ==================================
