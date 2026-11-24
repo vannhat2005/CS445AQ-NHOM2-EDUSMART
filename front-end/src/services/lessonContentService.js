@@ -1,16 +1,27 @@
 
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: 'http://localhost:8080/api'
-});
+import api, { getAccessToken } from './api';
 
 const unwrap = (response) => response.data?.result ?? response.data;
 
 export const getLessonContentFileUrl = (path) => {
   if (!path) return '';
-  if (/^https?:\/\//i.test(path)) return path;
-  return `http://localhost:8080${path.startsWith('/') ? '' : '/'}${path}`;
+  let fullUrl = path;
+  if (!/^https?:\/\//i.test(path)) {
+    fullUrl = `http://localhost:8080${path.startsWith('/') ? '' : '/'}${path}`;
+  }
+  const token = getAccessToken();
+  if (token) {
+    try {
+      const u = new URL(fullUrl);
+      if (!u.searchParams.has('token')) {
+        u.searchParams.set('token', token);
+      }
+      return u.href;
+    } catch {
+      return fullUrl;
+    }
+  }
+  return fullUrl;
 };
 
 const basePath = (courseId, chapterId, lessonId) =>

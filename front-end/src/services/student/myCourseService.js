@@ -137,7 +137,7 @@ export const getMyCourses = async (
 
   const normalizedKeyword =
     typeof keyword === "string"
-      ? keyword.trim()
+      ? keyword.trim().replace(/\s+/g, " ")
       : "";
 
   const normalizedSortBy = String(
@@ -228,9 +228,51 @@ export const getMyCourses = async (
 };
 
 // ==========================================
-// 3. EXPORT DEFAULT
+// 3. LẤY THỐNG KÊ TỔNG QUAN KHÓA HỌC
+// ==========================================
+// GET /api/student/my-courses/summary
+// Trả về: { total, inProgress, completed, notStarted }
+// ==========================================
+
+export const getMyCourseSummary = async (signal) => {
+  try {
+    const response = await api.get(
+      "/student/my-courses/summary",
+      { signal }
+    );
+
+    const data = response?.data;
+
+    if (data && data.code === 1000 && data.result) {
+      return {
+        total: Number(data.result.total) || 0,
+        inProgress: Number(data.result.inProgress) || 0,
+        completed: Number(data.result.completed) || 0,
+        notStarted: Number(data.result.notStarted) || 0,
+      };
+    }
+
+    return { total: 0, inProgress: 0, completed: 0, notStarted: 0 };
+  } catch (error) {
+    if (
+      error?.code !== "ERR_CANCELED" &&
+      error?.name !== "CanceledError" &&
+      error?.name !== "AbortError"
+    ) {
+      console.error(
+        "[MyCourses] Lỗi lấy thống kê tổng quan khóa học:",
+        error
+      );
+    }
+    return { total: 0, inProgress: 0, completed: 0, notStarted: 0 };
+  }
+};
+
+// ==========================================
+// 4. EXPORT DEFAULT
 // ==========================================
 
 export default {
   getMyCourses,
+  getMyCourseSummary,
 };

@@ -139,6 +139,11 @@ public enum ErrorCode {
 
     // TODO: Bổ sung lỗi tạo, gửi và quản lý thông báo;
 
+    // ==========================================
+    // 13. MODULE PAYMENT - QUẢN LÝ GIAO DỊCH THANH TOÁN
+    // (3000 - 3099)
+    // ==========================================
+    PAYMENT_NOT_FOUND(3001, "Không tìm thấy giao dịch thanh toán", HttpStatus.NOT_FOUND),
 
     // ==========================================
     // THUỘC TÍNH CHUNG

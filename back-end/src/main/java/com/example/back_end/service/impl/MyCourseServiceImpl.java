@@ -2,6 +2,7 @@
 package com.example.back_end.service.impl;
 
 import com.example.back_end.dto.response.MyCourseResponse;
+import com.example.back_end.dto.response.MyCourseSummaryResponse;
 import com.example.back_end.dto.response.PageResponse;
 import com.example.back_end.entity.CourseRegistration;
 import com.example.back_end.entity.User;
@@ -114,10 +115,14 @@ public class MyCourseServiceImpl implements MyCourseService {
                 ? "ALL_NEWEST"
                 : sortBy.trim().toUpperCase(Locale.ROOT);
 
-        String searchKeyword =
-                keyword == null || keyword.isBlank()
-                        ? null
-                        : keyword.trim();
+        String searchKeyword = null;
+        if (keyword != null && !keyword.isBlank()) {
+            String cleaned = keyword.trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+            searchKeyword = cleaned.replaceAll("\\s+", "%");
+        }
 
         // 3. Lọc khóa học đăng ký trong 30 ngày
         LocalDateTime fromDate = null;
@@ -370,6 +375,82 @@ public class MyCourseServiceImpl implements MyCourseService {
                 .completedQuizzes(completedQuizzes)
                 .progressPercent(progressPercent)
                 .learningStatus(learningStatus)
+                .build();
+    }
+
+    // ==========================================
+    // THỐNG KÊ TỔNG QUAN KHÓA HỌC (CỐ ĐỊNH)
+    // ==========================================
+    @Override
+    @Transactional(readOnly = true)
+    public MyCourseSummaryResponse getMyCourseSummary() {
+        Authentication authentication =
+                SecurityContextHolder.getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(
+                authentication.getPrincipal())) {
+
+            throw new AuthenticationCredentialsNotFoundException(
+                    "Bạn cần đăng nhập để xem khóa học"
+            );
+        }
+
+        User user = userRepository
+                .findByUsername(authentication.getName())
+                .orElseThrow(() ->
+                        new AuthenticationCredentialsNotFoundException(
+                                "Không tìm thấy người dùng"
+                        )
+                );
+
+        Integer userId = user.getUserId();
+
+        List<CourseRegistration> registrations =
+                courseRegistrationRepository.findAllMyCourses(
+                        userId,
+                        RegistrationStatus.Paid,
+                        CourseStatus.Published
+                );
+
+        long total = registrations.size();
+        long inProgress = 0;
+        long completed = 0;
+        long notStarted = 0;
+
+        for (CourseRegistration reg : registrations) {
+            Integer courseId = reg.getCourse().getCourseId();
+
+            long totalQuizzes =
+                    quizRepository.countQuizzesByCourseId(courseId);
+
+            long completedQuizzes =
+                    quizResultRepository.countCompletedQuizzes(
+                            userId,
+                            courseId
+                    );
+
+            completedQuizzes = Math.max(
+                    0,
+                    Math.min(completedQuizzes, totalQuizzes)
+            );
+
+            if (totalQuizzes == 0 || completedQuizzes == 0) {
+                notStarted++;
+            } else if (completedQuizzes >= totalQuizzes) {
+                completed++;
+            } else {
+                inProgress++;
+            }
+        }
+
+        return MyCourseSummaryResponse.builder()
+                .total(total)
+                .inProgress(inProgress)
+                .completed(completed)
+                .notStarted(notStarted)
                 .build();
     }
 }

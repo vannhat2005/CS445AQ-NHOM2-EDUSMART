@@ -230,7 +230,7 @@ export default function CourseDetailPage({
 
         setError(
           err?.message ||
-            "Không thể tải thông tin khóa học."
+          "Không thể tải thông tin khóa học."
         );
       })
       .finally(() => {
@@ -358,13 +358,17 @@ export default function CourseDetailPage({
       return;
     }
 
-    if (typeof onEnroll === "function") {
-      onEnroll(course);
-    } else {
-      setActionMessage(
-        "Chưa kết nối quy trình đăng ký hoặc thanh toán khóa học."
-      );
-    }
+    navigate(`/student/courses/${courseId}/checkout`, {
+      state: {
+        course: {
+          courseId: Number(courseId),
+          title: course.title,
+          instructor: course.instructorName,
+          amount: course.price,
+          imageUrl: course.imageUrl,
+        },
+      },
+    });
   };
 
   // ========================================
@@ -470,7 +474,7 @@ export default function CourseDetailPage({
       } else {
         setReviewMessage(
           err?.message ||
-            "Không thể gửi đánh giá. Vui lòng thử lại."
+          "Không thể gửi đánh giá. Vui lòng thử lại."
         );
       }
     } finally {
@@ -519,9 +523,8 @@ export default function CourseDetailPage({
 
   return (
     <div
-      className={`min-h-screen bg-slate-50 text-slate-800 ${
-        isEnrolled ? "pb-0" : "pb-24 lg:pb-0"
-      }`}
+      className={`min-h-screen bg-slate-50 text-slate-800 ${isEnrolled ? "pb-0" : "pb-24 lg:pb-0"
+        }`}
     >
       {/* ===================================
           HERO
@@ -562,9 +565,8 @@ export default function CourseDetailPage({
           </nav>
 
           <div
-            className={`space-y-4 ${
-              isEnrolled ? "lg:w-full" : "lg:w-2/3"
-            }`}
+            className={`space-y-4 ${isEnrolled ? "lg:w-full" : "lg:w-2/3"
+              }`}
           >
             <h1 className="text-3xl lg:text-5xl leading-tight font-extrabold tracking-tight">
               {course.title}
@@ -704,11 +706,10 @@ export default function CourseDetailPage({
           ================================= */}
 
           <div
-            className={`space-y-7 min-w-0 ${
-              isEnrolled
+            className={`space-y-7 min-w-0 ${isEnrolled
                 ? "lg:col-span-12"
                 : "lg:col-span-8"
-            }`}
+              }`}
           >
             {/* =============================
                 DESCRIPTION
@@ -720,11 +721,10 @@ export default function CourseDetailPage({
               </h2>
 
               <div
-                className={`whitespace-pre-line text-[15px] sm:text-base leading-8 text-slate-800 font-normal ${
-                  descriptionExpanded
+                className={`whitespace-pre-line text-[15px] sm:text-base leading-8 text-slate-800 font-normal ${descriptionExpanded
                     ? ""
                     : "line-clamp-6"
-                }`}
+                  }`}
               >
                 {course.description ||
                   "Chưa có mô tả khóa học."}
@@ -835,7 +835,7 @@ export default function CourseDetailPage({
                             <p className="text-xs text-slate-500 mt-1">
                               {formatNumber(
                                 chapter.totalLessons ??
-                                  chapter.lessons?.length
+                                chapter.lessons?.length
                               )}{" "}
                               bài học
                             </p>
@@ -848,7 +848,7 @@ export default function CourseDetailPage({
                       {expanded && (
                         <div className="p-2 sm:p-3 bg-white space-y-1">
                           {(chapter.lessons || []).length >
-                          0 ? (
+                            0 ? (
                             chapter.lessons.map(
                               (lesson, index) => (
                                 <button
@@ -962,11 +962,10 @@ export default function CourseDetailPage({
                               onClick={() =>
                                 setReviewRating(star)
                               }
-                              className={`text-3xl transition-colors ${
-                                star <= reviewRating
+                              className={`text-3xl transition-colors ${star <= reviewRating
                                   ? "text-amber-400"
                                   : "text-slate-300"
-                              }`}
+                                }`}
                             >
                               ★
                             </button>
@@ -1033,8 +1032,8 @@ export default function CourseDetailPage({
                       <div className="text-5xl font-black text-blue-700">
                         {Number(
                           reviews?.averageRating ??
-                            course.averageRating ??
-                            0
+                          course.averageRating ??
+                          0
                         ).toFixed(1)}
                       </div>
 
@@ -1048,7 +1047,7 @@ export default function CourseDetailPage({
                       <p className="text-sm text-slate-500 mt-2">
                         {formatNumber(
                           reviews?.totalReviews ??
-                            course.totalReviews
+                          course.totalReviews
                         )}{" "}
                         đánh giá
                       </p>
@@ -1060,7 +1059,7 @@ export default function CourseDetailPage({
                           const count = Number(
                             reviews
                               ?.ratingDistribution?.[
-                              star
+                            star
                             ] || 0
                           );
 
@@ -1070,8 +1069,8 @@ export default function CourseDetailPage({
 
                           const percent = total
                             ? Math.round(
-                                (count / total) * 100
-                              )
+                              (count / total) * 100
+                            )
                             : 0;
 
                           return (
@@ -1167,42 +1166,42 @@ export default function CourseDetailPage({
 
                   {(reviews?.reviews?.totalPages ||
                     0) > 1 && (
-                    <div className="flex items-center justify-center gap-4 mt-6">
-                      <button
-                        type="button"
-                        className="border rounded-lg px-3 py-2 disabled:opacity-40"
-                        disabled={reviewPage <= 1}
-                        onClick={() =>
-                          setReviewPage(
-                            (page) => page - 1
-                          )
-                        }
-                      >
-                        Trước
-                      </button>
+                      <div className="flex items-center justify-center gap-4 mt-6">
+                        <button
+                          type="button"
+                          className="border rounded-lg px-3 py-2 disabled:opacity-40"
+                          disabled={reviewPage <= 1}
+                          onClick={() =>
+                            setReviewPage(
+                              (page) => page - 1
+                            )
+                          }
+                        >
+                          Trước
+                        </button>
 
-                      <span className="text-sm">
-                        Trang {reviewPage}/
-                        {reviews.reviews.totalPages}
-                      </span>
+                        <span className="text-sm">
+                          Trang {reviewPage}/
+                          {reviews.reviews.totalPages}
+                        </span>
 
-                      <button
-                        type="button"
-                        className="border rounded-lg px-3 py-2 disabled:opacity-40"
-                        disabled={
-                          reviewPage >=
-                          reviews.reviews.totalPages
-                        }
-                        onClick={() =>
-                          setReviewPage(
-                            (page) => page + 1
-                          )
-                        }
-                      >
-                        Sau
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          type="button"
+                          className="border rounded-lg px-3 py-2 disabled:opacity-40"
+                          disabled={
+                            reviewPage >=
+                            reviews.reviews.totalPages
+                          }
+                          onClick={() =>
+                            setReviewPage(
+                              (page) => page + 1
+                            )
+                          }
+                        >
+                          Sau
+                        </button>
+                      </div>
+                    )}
                 </>
               )}
             </section>

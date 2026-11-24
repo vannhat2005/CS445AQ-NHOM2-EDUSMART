@@ -1,7 +1,9 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+
+import { useAuth } from "../../context/AuthContext";
 
 import {
   GraduationCap,
@@ -98,6 +100,7 @@ const labelClass =
 
 export default function Register() {
   const navigate = useNavigate();
+  const { isAuthenticated, user, loading } = useAuth();
 
   const [form, setForm] = useState(initialForm);
   const [showPassword, setShowPassword] = useState(false);
@@ -199,6 +202,25 @@ export default function Register() {
       setSubmitting(false);
     }
   };
+
+  // ========================================
+  // ĐÃ ĐĂNG NHẬP -> CHUYỂN VỀ ROUTE TƯƠNG ỨNG
+  // ========================================
+
+  if (loading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    const role = String(user?.role || "").toUpperCase();
+    if (role === "ADMIN") {
+      return <Navigate to="/admin" replace />;
+    }
+    if (role === "INSTRUCTOR") {
+      return <Navigate to="/instructor" replace />;
+    }
+    return <Navigate to="/student" replace />;
+  }
 
   // ========================================
   // GIAO DIỆN

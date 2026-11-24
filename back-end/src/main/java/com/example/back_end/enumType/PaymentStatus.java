@@ -1,5 +1,5 @@
 package com.example.back_end.enumType;
 
-public enum TransactionStatus {
+public enum PaymentStatus {
     Pending, Success, Failed
 }

@@ -76,8 +76,17 @@ const mapUser = (result) => {
 // AUTH PROVIDER
 // ========================================
 
+const USER_STORAGE_KEY = "user";
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem(USER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // true khi đang khôi phục đăng nhập
   const [loading, setLoading] = useState(true);
@@ -134,6 +143,14 @@ export function AuthProvider({ children }) {
 
         if (active) {
           setUser(currentUser);
+          try {
+            localStorage.setItem(
+              USER_STORAGE_KEY,
+              JSON.stringify(currentUser)
+            );
+          } catch {
+            // bỏ qua lỗi lưu trữ
+          }
         }
       } catch (error) {
         console.error(
@@ -143,6 +160,7 @@ export function AuthProvider({ children }) {
 
         if (active) {
           clearAccessToken();
+          localStorage.removeItem(USER_STORAGE_KEY);
           setUser(null);
         }
       } finally {
@@ -211,6 +229,14 @@ export function AuthProvider({ children }) {
       }
 
       setUser(currentUser);
+      try {
+        localStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify(currentUser)
+        );
+      } catch {
+        // bỏ qua lỗi lưu trữ
+      }
       setLoading(false);
 
       return currentUser;
@@ -232,6 +258,7 @@ export function AuthProvider({ children }) {
       );
     } finally {
       clearAccessToken();
+      localStorage.removeItem(USER_STORAGE_KEY);
       setUser(null);
       setLoading(false);
     }

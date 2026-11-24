@@ -29,6 +29,7 @@ public class LessonContentServiceImpl implements LessonContentService {
     // Repository truy vấn nội dung và bài học
     private final LessonContentRepository contentRepository;
     private final LessonRepository lessonRepository;
+    private final com.example.back_end.service.FileStorageService fileStorageService;
 
     // Thư mục lưu video và PDF
     @Value("${app.upload-dir:uploads/lesson-contents}")
@@ -86,14 +87,17 @@ public class LessonContentServiceImpl implements LessonContentService {
         if (file == null || file.isEmpty())
             throw new IllegalArgumentException("Vui lòng chọn file tải lên");
 
+        // Nếu là VIDEO: lưu vào uploads/videos/ và trả về URL stream hỗ trợ Range Request
+        if (type == ContentType.Video) {
+            return fileStorageService.storeLessonVideo(file);
+        }
+
+        // Nếu là PDF
         String original = Objects.toString(file.getOriginalFilename(), "").toLowerCase(Locale.ROOT);
         String extension = original.contains(".") ? original.substring(original.lastIndexOf('.')) : "";
 
         if (type == ContentType.PDF && !extension.equals(".pdf"))
             throw new IllegalArgumentException("Chỉ hỗ trợ file PDF");
-
-        if (type == ContentType.Video && !Set.of(".mp4", ".webm").contains(extension))
-            throw new IllegalArgumentException("Chỉ hỗ trợ video MP4 hoặc WebM");
 
         try {
             byte[] header;
@@ -102,30 +106,16 @@ public class LessonContentServiceImpl implements LessonContentService {
                 header = input.readNBytes(16);
             }
 
-            boolean valid = false;
-
-            if (extension.equals(".pdf"))
-                valid = header.length >= 5
-                        && new String(header, 0, 5, java.nio.charset.StandardCharsets.US_ASCII).equals("%PDF-");
-
-            if (extension.equals(".mp4"))
-                valid = header.length >= 8
-                        && new String(header, 4, 4, java.nio.charset.StandardCharsets.US_ASCII).equals("ftyp");
-
-            if (extension.equals(".webm"))
-                valid = header.length >= 4
-                        && (header[0] & 255) == 0x1A
-                        && (header[1] & 255) == 0x45
-                        && (header[2] & 255) == 0xDF
-                        && (header[3] & 255) == 0xA3;
+            boolean valid = header.length >= 5
+                    && new String(header, 0, 5, java.nio.charset.StandardCharsets.US_ASCII).equals("%PDF-");
 
             if (!valid)
-                throw new IllegalArgumentException("Định dạng file không hợp lệ");
+                throw new IllegalArgumentException("Định dạng file PDF không hợp lệ");
 
-            Path folder = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path folder = Paths.get("uploads/pdfs").toAbsolutePath().normalize();
             Files.createDirectories(folder);
 
-            String fileName = UUID.randomUUID() + extension;
+            String fileName = "pdf_" + UUID.randomUUID() + extension;
 
             try (var input = file.getInputStream()) {
                 Files.copy(input, folder.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);

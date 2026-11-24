@@ -44,6 +44,9 @@ public interface LessonContentRepository
     // Tìm nội dung theo ID và kiểm tra nội dung thuộc bài học
     Optional<LessonContent> findByContentIdAndLesson_LessonId(Integer contentId, Integer lessonId);
 
+    // Tìm nội dung video theo tên file trong URL contentData
+    Optional<LessonContent> findFirstByContentDataContaining(String fileName);
+
     @Query("""
         SELECT lc
         FROM LessonContent lc

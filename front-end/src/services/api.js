@@ -164,6 +164,12 @@ api.interceptors.request.use(
       delete config.headers.Authorization;
     }
 
+    // Nếu dữ liệu gửi lên là FormData, xóa Content-Type để browser tự thêm multipart và boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
+    }
+
     return config;
   },
 

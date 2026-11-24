@@ -12,7 +12,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.util.List;
@@ -23,6 +23,7 @@ public class LessonContentController {
 
     // Service xử lý nghiệp vụ nội dung bài học
     private final LessonContentService contentService;
+    private final com.example.back_end.service.FileStorageService fileStorageService;
 
     // Thư mục lưu file video và PDF
     @Value("${app.upload-dir:uploads/lesson-contents}")
@@ -116,36 +117,43 @@ public class LessonContentController {
                 .build();
     }
 
-    // Trả file PDF hoặc video cho trình duyệt xem
+    // Trả file PDF hoặc video (hỗ trợ HTTP Range Request cho video)
     @GetMapping("/api/lesson-content/files/{fileName:.+}")
-    public ResponseEntity<Resource> viewFile(
-            @PathVariable String fileName) throws MalformedURLException {
+    public ResponseEntity<?> viewFile(
+            @PathVariable String fileName,
+            @RequestHeader HttpHeaders headers) throws IOException {
 
+        // Kiểm tra xem có phải file video không
+        String name = fileName.toLowerCase();
+        if (name.endsWith(".mp4") || name.endsWith(".webm")) {
+            Path videoPath = fileStorageService.loadVideoPath(fileName);
+            if (videoPath != null && Files.exists(videoPath)) {
+                return fileStorageService.streamVideo(videoPath, headers);
+            }
+        }
+
+        // Xử lý các file khác như PDF
         Path folder = Paths.get(uploadDir).toAbsolutePath().normalize();
         Path path = folder.resolve(fileName).normalize();
 
-        if (!path.getParent().equals(folder) || !Files.isRegularFile(path)) {
+        if (!Files.exists(path) || !Files.isRegularFile(path)) {
+            // Thử tìm trong uploads/pdfs
+            path = Paths.get("uploads/pdfs").toAbsolutePath().normalize().resolve(fileName).normalize();
+            if (!Files.exists(path) || !Files.isRegularFile(path)) {
+                path = Paths.get("back-end/uploads/pdfs").toAbsolutePath().normalize().resolve(fileName).normalize();
+            }
+        }
+
+        if (!Files.exists(path) || !Files.isRegularFile(path)) {
             return ResponseEntity.notFound().build();
         }
 
         Resource resource = new UrlResource(path.toUri());
-
         if (!resource.exists() || !resource.isReadable()) {
             return ResponseEntity.notFound().build();
         }
 
-        String name = fileName.toLowerCase();
-        MediaType type;
-
-        if (name.endsWith(".pdf")) {
-            type = MediaType.APPLICATION_PDF;
-        } else if (name.endsWith(".mp4")) {
-            type = MediaType.parseMediaType("video/mp4");
-        } else if (name.endsWith(".webm")) {
-            type = MediaType.parseMediaType("video/webm");
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        MediaType type = name.endsWith(".pdf") ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM;
 
         return ResponseEntity.ok()
                 .contentType(type)
