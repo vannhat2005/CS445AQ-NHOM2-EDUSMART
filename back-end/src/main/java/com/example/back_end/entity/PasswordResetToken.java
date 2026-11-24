@@ -23,6 +23,7 @@ public class PasswordResetToken {
     @Column(name = "otp_hash", length = 255)
     private String otpHash;
 
+    // Thời gian hết hạn của mã OTP
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
