@@ -1,6 +1,5 @@
 
 import api, { getAccessToken } from './api';
-import api from "./api";
 
 const unwrap = (response) => response.data?.result ?? response.data;
 

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 
@@ -33,6 +34,11 @@ public class Quiz {
 
     @Column(name = "time_limit")
     private Integer timeLimit;
+
+    // Điểm tối thiểu để vượt qua bài kiểm tra cuối chương
+    // Giá trị null đối với trắc nghiệm bài học
+    @Column(name = "passing_score", precision = 4, scale = 2)
+    private BigDecimal passingScore;
 
     @Enumerated(EnumType.STRING)
     private QuizStatus status;
