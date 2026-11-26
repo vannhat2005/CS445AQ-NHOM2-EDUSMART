@@ -1,11 +1,6 @@
-import React from 'react'
+import React from 'react';
+import AdminReports from './AdminReports';
 
-const AdminDashboard = () => {
-  return (
-    <div>
-        Đây là trang quản trị (Admin Dashboard). Bạn có thể thêm các chức năng quản trị ở đây.
-    </div>
-  )
+export default function AdminDashboard() {
+  return <AdminReports />;
 }
-
-export default AdminDashboard

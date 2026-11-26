@@ -30,6 +30,7 @@ public class LessonContentServiceImpl implements LessonContentService {
     private final LessonContentRepository contentRepository;
     private final LessonRepository lessonRepository;
     private final com.example.back_end.service.FileStorageService fileStorageService;
+    private final com.example.back_end.rag.LessonPdfProducer lessonPdfProducer;
 
     // Thư mục lưu video và PDF
     @Value("${app.upload-dir:uploads/lesson-contents}")
@@ -207,7 +208,15 @@ public class LessonContentServiceImpl implements LessonContentService {
         content.setOrderNum(maxOrder + 1);
         content.setStatus(request.getStatus());
 
-        return toResponse(contentRepository.saveAndFlush(content));
+        LessonContent saved = contentRepository.saveAndFlush(content);
+        if (saved.getContentType() == ContentType.PDF && saved.getContentData() != null) {
+            String fileName = saved.getContentData().contains("/")
+                    ? saved.getContentData().substring(saved.getContentData().lastIndexOf('/') + 1)
+                    : saved.getContentData();
+            lessonPdfProducer.publishPdfUploadedEvent(fileName, lessonId, courseId);
+        }
+
+        return toResponse(saved);
     }
 
     // Cập nhật tiêu đề, loại nội dung, file và trạng thái
@@ -234,7 +243,15 @@ public class LessonContentServiceImpl implements LessonContentService {
         content.setContentData(data);
         content.setStatus(request.getStatus());
 
-        return toResponse(contentRepository.saveAndFlush(content));
+        LessonContent saved = contentRepository.saveAndFlush(content);
+        if (saved.getContentType() == ContentType.PDF && saved.getContentData() != null) {
+            String fileName = saved.getContentData().contains("/")
+                    ? saved.getContentData().substring(saved.getContentData().lastIndexOf('/') + 1)
+                    : saved.getContentData();
+            lessonPdfProducer.publishPdfUploadedEvent(fileName, lessonId, courseId);
+        }
+
+        return toResponse(saved);
     }
 
     // Đổi thứ tự nội dung lên hoặc xuống

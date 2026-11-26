@@ -1,10 +1,64 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   getStudentQuizDetail,
   submitStudentQuiz,
 } from "../../services/student/quizService";
+import { aiChatService } from "../../services/aiChatService";
+
+function FormattedExplanation({ text }) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1.5 text-sm leading-relaxed text-on-surface">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1.5" />;
+
+        if (trimmed.startsWith("###")) {
+          return (
+            <h4 key={idx} className="font-bold text-on-surface text-sm mt-2 mb-1">
+              {trimmed.replace(/^###\s*/, "")}
+            </h4>
+          );
+        }
+        if (trimmed.startsWith("##")) {
+          return (
+            <h3 key={idx} className="font-bold text-on-surface text-base mt-2 mb-1">
+              {trimmed.replace(/^##\s*/, "")}
+            </h3>
+          );
+        }
+        if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          const content = trimmed.substring(2);
+          return (
+            <div key={idx} className="flex items-start gap-1.5 pl-2">
+              <span className="text-primary font-bold">•</span>
+              <span>{renderInlineBold(content)}</span>
+            </div>
+          );
+        }
+        return <p key={idx}>{renderInlineBold(line)}</p>;
+      })}
+    </div>
+  );
+}
+
+function renderInlineBold(str) {
+  if (!str) return "";
+  const parts = str.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-bold text-on-surface">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
 
 export default function QuizExamPage() {
   const { courseId, lessonId, quizId } = useParams();
@@ -30,6 +84,7 @@ export default function QuizExamPage() {
   // State màn hình kết quả sau khi nộp bài
   const [resultFilter, setResultFilter] = useState("ALL"); // ALL | INCORRECT | CORRECT | EXPLANATION
   const [openExplanations, setOpenExplanations] = useState({}); // questionId -> boolean
+  const [aiExplanations, setAiExplanations] = useState({}); // questionId -> { loading, text, citations }
 
   const initialTimeRef = useRef(45 * 60);
   const startTimeRef = useRef(Date.now());
@@ -262,11 +317,62 @@ export default function QuizExamPage() {
       });
     }
 
-    const toggleExplanation = (questionId) => {
+    const toggleExplanation = async (q) => {
+      const qId = typeof q === "object" ? q.questionId : q;
+      const questionObj = typeof q === "object" ? q : (questions.find((item) => item.questionId === qId) || {});
+      const willOpen = !openExplanations[qId];
       setOpenExplanations((prev) => ({
         ...prev,
-        [questionId]: !prev[questionId],
+        [qId]: willOpen,
       }));
+
+      if (willOpen && !aiExplanations[qId]) {
+        setAiExplanations((prev) => ({
+          ...prev,
+          [qId]: { loading: true, text: "", citations: [] },
+        }));
+
+        try {
+          const fb = feedbackMap[qId] || {};
+          const chosenId = fb.selectedAnswerId !== undefined ? fb.selectedAnswerId : selectedAnswers[qId];
+          const chosenOpt = (questionObj.options || []).find((o) => o.answerId === chosenId);
+          const optionsList = (questionObj.options || []).map((o, idx) => {
+            const label = o.label || String.fromCharCode(65 + idx);
+            return `${label}. ${o.title || o.content || ""}`;
+          });
+
+          const res = await aiChatService.chatQuiz({
+            questionText: questionObj.content || "",
+            options: optionsList,
+            selectedOption: chosenOpt?.title || null,
+            lessonId,
+            courseId,
+            questionId: qId,
+            userQuery:
+              "Hãy phân tích chi tiết câu hỏi trắc nghiệm này dựa trên bài giảng PDF và giải thích vì sao đáp án đúng.",
+          });
+
+          setAiExplanations((prev) => ({
+            ...prev,
+            [qId]: {
+              loading: false,
+              text: res?.reply || questionObj.explanation || fb.explanation,
+              citations: res?.citations || [],
+            },
+          }));
+        } catch (err) {
+          console.error("Lỗi tải AI explanation:", err);
+          const fb = feedbackMap[qId] || {};
+          setAiExplanations((prev) => ({
+            ...prev,
+            [qId]: {
+              loading: false,
+              text: questionObj.explanation || fb.explanation || "Không thể tải phân tích AI lúc này.",
+              citations: [],
+            },
+          }));
+        }
+      }
     };
 
     const explanationCount = questions.filter((q) => {
@@ -721,7 +827,7 @@ export default function QuizExamPage() {
                       <div className="flex items-center pt-1">
                         <button
                           type="button"
-                          onClick={() => toggleExplanation(q.questionId)}
+                          onClick={() => toggleExplanation(q)}
                           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-label-md text-label-md transition-all shadow-xs cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-[18px]">smart_toy</span>
@@ -737,24 +843,38 @@ export default function QuizExamPage() {
                               <span>Trợ lý AI Giải thích</span>
                             </div>
                             <span className="font-label-sm text-label-sm bg-surface-container-lowest text-primary px-2.5 py-1 rounded-full shadow-xs">
-                              Phân tích tự động bởi EduSmart AI Engine
+                              Đối chiếu lý thuyết PDF bài học &amp; suy luận AI
                             </span>
                           </div>
 
-                          <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-                            {explanationText || "Đáp án đã được hệ thống kiểm duyệt và đánh giá chính xác theo tài liệu chuẩn của chương học."}
-                          </p>
+                          {aiExplanations[q.questionId]?.loading ? (
+                            <div className="flex items-center gap-2.5 py-3 text-primary text-sm font-medium">
+                              <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce"></span>
+                              <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce [animation-delay:0.2s]"></span>
+                              <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce [animation-delay:0.4s]"></span>
+                              <span>AI đang đối chiếu tài liệu PDF bài học và phân tích đáp án...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="font-body-md text-body-md text-on-surface leading-relaxed">
+                                <FormattedExplanation text={aiExplanations[q.questionId]?.text || explanationText || "Đáp án đã được hệ thống kiểm duyệt và đánh giá chính xác theo tài liệu chuẩn của chương học."} />
+                              </div>
 
-                          <div className="flex items-center pt-1">
-                            <button
-                              type="button"
-                              className="bg-surface-container-lowest text-primary hover:bg-surface-container-high px-space-md py-2 rounded-lg inline-flex items-center gap-2 font-label-lg text-label-lg shadow-xs transition-colors cursor-pointer"
-                              onClick={() => toast("Đang kết nối tới EduSmart AI Assistant...", { icon: "🤖" })}
-                            >
-                              <span className="material-symbols-outlined text-[18px]">chat_bubble_outline</span>
-                              <span>Hỏi thêm AI về câu này</span>
-                            </button>
-                          </div>
+                              {aiExplanations[q.questionId]?.citations && aiExplanations[q.questionId].citations.length > 0 && (
+                                <div className="pt-2 flex flex-wrap gap-2 items-center">
+                                  <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[14px]">description</span>
+                                    Căn cứ PDF:
+                                  </span>
+                                  {aiExplanations[q.questionId].citations.map((c, cIdx) => (
+                                    <span key={cIdx} className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary font-semibold text-xs shadow-2xs">
+                                      Trang {c.page} ({c.source})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -939,21 +1059,23 @@ export default function QuizExamPage() {
                     </span>
                   </div>
 
-                  {/* Flag button */}
-                  <button
-                    onClick={toggleCurrentFlag}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-label-md transition-colors cursor-pointer ${
-                      isCurrentFlagged
-                        ? "bg-tertiary-fixed text-on-tertiary-fixed"
-                        : "bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-tertiary-container"
-                    }`}
-                    type="button"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {isCurrentFlagged ? "bookmark" : "bookmark_border"}
-                    </span>
-                    <span>{isCurrentFlagged ? "Đã gắn cờ" : "Đánh dấu xem lại"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Flag button */}
+                    <button
+                      onClick={toggleCurrentFlag}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-label-md transition-colors cursor-pointer ${
+                        isCurrentFlagged
+                          ? "bg-tertiary-fixed text-on-tertiary-fixed"
+                          : "bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-tertiary-container"
+                      }`}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isCurrentFlagged ? "bookmark" : "bookmark_border"}
+                      </span>
+                      <span>{isCurrentFlagged ? "Đã gắn cờ" : "Đánh dấu xem lại"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Question Body Content */}

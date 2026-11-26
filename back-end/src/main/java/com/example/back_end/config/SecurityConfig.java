@@ -112,14 +112,20 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // ==================================
-                        // ZALOPAY CALLBACK
+                        // ZALOPAY CALLBACK & AI CHATBOX
                         // ==================================
                         // ZaloPay không có JWT của sinh viên.
                         // Controller phải tự xác minh chữ ký
                         // HMAC-SHA256 bằng ZALOPAY_KEY2.
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/api/payments/zalopay/callback"
+                                "/api/payments/zalopay/callback",
+                                "/api/chat/**",
+                                "/api/rag/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/chat/**"
                         ).permitAll()
 
                         // ==================================

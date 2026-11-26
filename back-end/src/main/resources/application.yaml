@@ -8,8 +8,8 @@ spring:
   # ==========================================
   datasource:
     url: jdbc:mysql://localhost:3306/edusmart_db
-    username: root
-    password: root
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # ==========================================
@@ -40,15 +40,28 @@ spring:
   profiles:
     active: sandbox
 
-# ==========================================
-# 5. APP CONFIGURATION
-# ==========================================
-  # Cấu hình gửi Email OTP bằng Gmail
+  # ==========================================
+  # KAFKA BROKER
+  # ==========================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: edusmart-ai-rag-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # ==========================================
+  # 5. EMAIL OTP
+  # ==========================================
   mail:
     host: smtp.gmail.com
     port: 587
     username: ${MAIL_USERNAME}
-    password: ${MAIL_APP_PASSWORD}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -59,7 +72,10 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
-# Thư mục lưu video và PDF của bài học
+
+# ==========================================
+# APP CONFIGURATION
+# ==========================================
 app:
   upload-dir: uploads/lesson-contents
   upload:
@@ -67,13 +83,12 @@ app:
     videos-dir: uploads/videos
 
   jwt:
-    secret: "RGyivbOAwSDYdNNTwhf0xX4COpkPyslqWMmB1cgB47t"
+    secret: ${JWT_SECRET}
     expiration-ms: 900000
     refresh-expiration-ms: 604800000
 
-  # Khóa ký token đặt lại mật khẩu sau khi xác thực OTP
   password-reset:
-    secret: nlqggzuwndhzvencqkwvdntwyqrddcygykkhsmyhyifcpsynuxdjvvjeeojdxzzy
+    secret: ${PASSWORD_RESET_SECRET}
 
   cookie:
     secure: false
@@ -87,12 +102,12 @@ server:
   address: 0.0.0.0
 
 # ==========================================
-# 7. ZALOPAY SANDBOX (API V2)
+# 7. ZALOPAY SANDBOX
 # ==========================================
 zalopay:
-  app-id: 553
-  key1: 9phuAOYhan4urywHTh0ndEXiV3pKHr5Q
-  key2: Iyz2habzyr7AG8SgvoBCbKwKi3UzlLi3
+  app-id: ${ZALOPAY_APP_ID:553}
+  key1: ${ZALOPAY_KEY1}
+  key2: ${ZALOPAY_KEY2}
 
   create-url: https://sb-openapi.zalopay.vn/v2/create
   query-url: https://sb-openapi.zalopay.vn/v2/query
@@ -101,17 +116,48 @@ zalopay:
   redirect-url: http://localhost:5173/student/payment/result
 
 # ==========================================
-# 8. MOMO SANDBOX (API V2)
+# 8. MOMO SANDBOX
 # ==========================================
 momo:
-  partner-code: "MOMO"
-  access-key: "F8BBA842ECF85"
-  secret-key: "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+  partner-code: ${MOMO_PARTNER_CODE:MOMO}
+  access-key: ${MOMO_ACCESS_KEY}
+  secret-key: ${MOMO_SECRET_KEY}
 
   create-url: https://test-payment.momo.vn/v2/gateway/api/create
   query-url: https://test-payment.momo.vn/v2/gateway/api/query
 
   redirect-url: http://localhost:5173/student/payment/result
 
-  # Thay xxxx bằng địa chỉ ngrok đang chạy
-  ipn-url: https://xxxx.ngrok-free.app/api/payments/momo/ipn
+  ipn-url: ${MOMO_IPN_URL:https://xxxx.ngrok-free.app/api/payments/momo/ipn}
+
+# ==========================================
+# 9. AI CHATBOX & RAG CONFIGURATION
+# ==========================================
+ai:
+  llm:
+    provider: "gemini"
+    api-key: ${GEMINI_API_KEY:}
+    model-name: "gemini-1.5-flash"
+    temperature: 0.3
+    max-tokens: 2048
+
+  embeddings:
+    provider: "local"
+    model-name: "models/gemini-embedding-001"
+    dimension: 768
+
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017}
+    database: "edusmart_ai_db"
+    collection: "lesson_pdf_embeddings"
+    timeout-ms: 3000
+
+  rag:
+    chunk-size: 600
+    chunk-overlap: 100
+    top-k: 4
+    upload-dir: "uploads/lesson-contents"
+
+  kafka:
+    enabled: true
+    topic: "lesson-pdf-topic"

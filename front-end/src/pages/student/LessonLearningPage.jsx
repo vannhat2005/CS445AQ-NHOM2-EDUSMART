@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCourseCurriculum, getLessonDetail } from "../../services/student/lessonService";
+import LessonAIChat from "../../components/ai/LessonAIChat";
 
 const cx = (...items) => items.filter(Boolean).join(" ");
 const isVideo = (item) => /video/i.test(item?.contentType || "");
@@ -237,7 +238,13 @@ export default function LessonLearningPage() {
                 {shownChapter === chapter.id && <div className="space-y-1 p-2">{chapter.lessons.map((item) => <button key={item.id} onClick={() => goToLesson(item.id)} className={cx("block w-full rounded-lg px-3 py-2 text-left text-sm", String(item.id) === String(lessonId) ? "bg-blue-100 font-bold text-blue-800" : "text-slate-700 hover:bg-slate-50")}>{String(item.id) === String(lessonId) ? "▶ " : "○ "}{item.title}</button>)}</div>}
               </div>) : !curriculumError && <p className="text-sm text-slate-500">Không có dữ liệu chương/bài học từ API.</p>}
               <div className="rounded-xl border border-slate-200 p-3"><h3 className="mb-2 text-sm font-bold">Nội dung bài đang xem</h3>{contents.map((item) => <button key={item.contentId} onClick={() => { if (isVideo(item)) { setSelectedVideoId(item.contentId); setTab("overview"); } else if (isPdf(item)) { setSelectedPdfId(item.contentId); setTab("pdf"); } else setTab("overview"); }} className="block w-full rounded-lg px-2 py-2 text-left text-xs text-slate-700 hover:bg-blue-50">{isVideo(item) ? "▶" : isPdf(item) ? "📄" : "▤"} {item.title}</button>)}</div>
-            </div> : <div className="flex min-h-[450px] flex-col justify-between gap-4 p-4"><div><h3 className="font-bold text-blue-700">Trợ lý EduSmart AI</h3><p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Giao diện AI đã sẵn sàng. Cần API chat Backend để gửi câu hỏi và nhận phản hồi thực tế.</p><div className="mt-4 flex flex-wrap gap-2">{["Giải thích lại khái niệm này", "Cho tôi ví dụ thực tế", "Lỗi hay gặp khi học bài"].map((s) => <button key={s} onClick={() => setAiInput(s)} className="rounded-full bg-slate-100 px-3 py-2 text-xs hover:bg-blue-50">💡 {s}</button>)}</div></div><div className="flex gap-2"><input value={aiInput} onChange={(e) => setAiInput(e.target.value)} placeholder="Hỏi AI về bài học..." className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" /><button disabled title="Chưa có API chat AI" className="rounded-lg bg-slate-300 px-3 py-2 text-white">Gửi</button></div></div>}
+            </div> : (
+              <LessonAIChat
+                lessonId={lessonId}
+                courseId={courseId}
+                lessonTitle={lesson?.lessonTitle}
+              />
+            )}
           </div>
         </aside>
       </main>

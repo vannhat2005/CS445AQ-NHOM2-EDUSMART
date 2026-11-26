@@ -128,6 +128,49 @@
 			<version>5.4.1</version>
 		</dependency>
 
+		<!-- MongoDB Drivers (Local Libs) -->
+		<dependency>
+			<groupId>org.mongodb</groupId>
+			<artifactId>mongodb-driver-sync</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mongodb</groupId>
+			<artifactId>mongodb-driver-core</artifactId>
+			<version>5.8.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/mongodb-driver-core-5.8.1.jar</systemPath>
+		</dependency>
+		<dependency>
+			<groupId>org.mongodb</groupId>
+			<artifactId>bson</artifactId>
+			<version>5.8.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/bson-5.8.1.jar</systemPath>
+		</dependency>
+
+		<!-- Spring Kafka (Local Libs) -->
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+			<version>3.3.5</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/spring-kafka-3.3.5.jar</systemPath>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>3.8.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/kafka-clients-3.8.1.jar</systemPath>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-messaging</artifactId>
+			<version>6.2.17</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/spring-messaging-6.2.17.jar</systemPath>
+		</dependency>
+
 	</dependencies>
 
 	<build>
