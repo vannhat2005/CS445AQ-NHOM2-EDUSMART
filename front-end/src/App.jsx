@@ -224,8 +224,15 @@ function AppRoutes() {
             element={<ManageLessonContent />}
           />
 
+          {/* Biên soạn trắc nghiệm bài học */}
           <Route
             path="courses/:courseId/chapters/:chapterId/lessons/:lessonId/quiz"
+            element={<QuizEditor />}
+          />
+
+          {/* Biên soạn bài kiểm tra cuối chương */}
+          <Route
+            path="courses/:courseId/chapters/:chapterId/quiz"
             element={<QuizEditor />}
           />
 
