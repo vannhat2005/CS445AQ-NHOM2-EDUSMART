@@ -174,23 +174,20 @@ const ManagePayments = () => {
     setEditModalOpen(true);
   };
 
-  // Lưu chỉnh sửa giao dịch
+  // Lưu chỉnh sửa giao dịch (Chỉ cho phép cập nhật trạng thái)
   const handleSaveTransaction = async (e) => {
     e.preventDefault();
     if (!editForm.paymentId) return;
 
     setSaving(true);
     try {
-      const rawAmount = String(editForm.amount).replace(/[^0-9.]/g, '');
       const payload = {
-        status: editForm.status,
-        paymentMethod: editForm.paymentMethod,
-        amount: rawAmount ? parseFloat(rawAmount) : undefined
+        status: editForm.status
       };
 
       await updateAdminPayment(editForm.paymentId, payload);
       setEditModalOpen(false);
-      showSuccessToast(`Đã lưu thay đổi giao dịch ${editForm.sysId} thành công!`);
+      showSuccessToast(`Đã cập nhật trạng thái giao dịch ${editForm.sysId} thành công!`);
 
       // Cập nhật lại giao diện và số liệu thống kê
       loadPayments(page);
@@ -900,12 +897,17 @@ const ManagePayments = () => {
             </div>
 
             <form className="p-6 overflow-y-auto flex flex-col gap-4 text-xs" onSubmit={handleSaveTransaction}>
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-800 text-[12px] flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-600 text-[18px]">info</span>
+                <span>Theo quy định đối soát: <strong>Chỉ cho phép thay đổi trạng thái giao dịch</strong>. Các thông tin tài chính và người dùng được khóa cố định để bảo vệ tính toàn vẹn dữ liệu.</span>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Mã giao dịch */}
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
                     <span>Mã giao dịch</span>
-                    <span className="font-body-sm text-body-sm text-outline font-normal">(Không được phép thay đổi mã giao dịch)</span>
+                    <span className="font-body-sm text-body-sm text-outline font-normal">(Cố định)</span>
                   </label>
                   <input
                     value={editForm.sysId}
@@ -917,86 +919,100 @@ const ManagePayments = () => {
 
                 {/* Họ tên học viên */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Họ tên học viên</label>
+                  <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+                    <span>Họ tên học viên</span>
+                    <span className="text-[11px] text-outline">(Cố định)</span>
+                  </label>
                   <input
                     value={editForm.studentName}
-                    onChange={(e) => setEditForm({ ...editForm, studentName: e.target.value })}
-                    required
-                    className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+                    readOnly
+                    className="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-md border border-outline-variant/30 cursor-not-allowed"
                     type="text"
                   />
                 </div>
 
                 {/* Email học viên */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Email học viên</label>
+                  <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+                    <span>Email học viên</span>
+                    <span className="text-[11px] text-outline">(Cố định)</span>
+                  </label>
                   <input
                     value={editForm.studentEmail}
-                    onChange={(e) => setEditForm({ ...editForm, studentEmail: e.target.value })}
-                    required
-                    className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+                    readOnly
+                    className="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-md border border-outline-variant/30 cursor-not-allowed"
                     type="email"
                   />
                 </div>
 
                 {/* Khóa học đăng ký */}
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Khóa học đăng ký</label>
+                  <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+                    <span>Khóa học đăng ký</span>
+                    <span className="text-[11px] text-outline">(Cố định)</span>
+                  </label>
                   <input
                     value={editForm.courseName}
-                    onChange={(e) => setEditForm({ ...editForm, courseName: e.target.value })}
-                    className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+                    readOnly
+                    className="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-md border border-outline-variant/30 cursor-not-allowed"
                     type="text"
                   />
                 </div>
 
                 {/* Phương thức thanh toán */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Phương thức thanh toán</label>
-                  <div className="relative">
-                    <select
-                      value={editForm.paymentMethod}
-                      onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
-                      className="w-full appearance-none h-10 pl-3.5 pr-9 rounded-lg bg-surface-container-lowest text-on-surface font-body-md border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 cursor-pointer"
-                    >
-                      <option value="MoMo">Ví điện tử MoMo</option>
-                      <option value="ZaloPay">Ví điện tử ZaloPay</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
-                      expand_more
-                    </span>
-                  </div>
-                </div>
-
-                {/* Số tiền giao dịch */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Số tiền giao dịch</label>
+                  <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+                    <span>Phương thức thanh toán</span>
+                    <span className="text-[11px] text-outline">(Cố định)</span>
+                  </label>
                   <input
-                    value={editForm.amount}
-                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                    required
-                    className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-headline-sm text-[16px] font-bold border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+                    value={editForm.paymentMethod === 'MoMo' ? 'Ví điện tử MoMo' : 'Ví điện tử ZaloPay'}
+                    readOnly
+                    className="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-md border border-outline-variant/30 cursor-not-allowed"
                     type="text"
                   />
                 </div>
 
-                {/* Trạng thái giao dịch */}
-                <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <label className="font-label-md text-label-md text-on-surface font-medium">Trạng thái giao dịch</label>
-                  <div className="relative">
+                {/* Số tiền giao dịch */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+                    <span>Số tiền giao dịch</span>
+                    <span className="text-[11px] text-outline">(Cố định)</span>
+                  </label>
+                  <input
+                    value={formatCurrency(editForm.amount)}
+                    readOnly
+                    className="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface-variant font-headline-sm text-[15px] font-bold border border-outline-variant/30 cursor-not-allowed"
+                    type="text"
+                  />
+                </div>
+
+                {/* Trạng thái giao dịch - TRƯỜNG DUY NHẤT ĐƯỢC PHÉP CHỈNH SỬA */}
+                <div className="flex flex-col gap-1.5 sm:col-span-2 bg-primary/5 p-3.5 rounded-xl border-2 border-primary/30">
+                  <label className="font-label-md text-label-md text-primary font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                      Trạng thái giao dịch (Cho phép thay đổi)
+                    </span>
+                    <span className="text-[11px] font-semibold text-primary">Cập nhật ngay</span>
+                  </label>
+                  <div className="relative mt-1">
                     <select
                       value={editForm.status}
                       onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full appearance-none h-10 pl-3.5 pr-9 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md font-semibold border border-outline-variant/40 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 cursor-pointer"
+                      className="w-full appearance-none h-11 pl-3.5 pr-9 rounded-lg bg-white text-on-surface font-label-md text-label-md font-bold border border-primary/40 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 cursor-pointer shadow-sm"
                     >
-                      <option value="pending">Đang chờ duyệt</option>
-                      <option value="success">Thành công</option>
-                      <option value="failed">Thất bại / Hủy</option>
+                      <option value="pending">⏳ Đang chờ duyệt (Pending)</option>
+                      <option value="success">✅ Thành công (Success - Mở khóa học cho học viên)</option>
+                      <option value="failed">❌ Thất bại / Hủy (Failed)</option>
                     </select>
-                    <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-primary text-[20px] pointer-events-none">
                       expand_more
                     </span>
                   </div>
+                  <p className="text-[11px] text-slate-600 mt-1">
+                    * Lưu ý: Khi admin chuyển trạng thái sang <strong>"Thành công"</strong>, hệ thống sẽ tự động kích hoạt quyền vào học cho học viên ngay lập tức.
+                  </p>
                 </div>
               </div>
 

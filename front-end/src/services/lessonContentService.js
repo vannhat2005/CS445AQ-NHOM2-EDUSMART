@@ -1,6 +1,5 @@
 
 import api, { getAccessToken } from './api';
-import api from "./api";
 
 const unwrap = (response) => response.data?.result ?? response.data;
 
@@ -23,10 +22,6 @@ export const getLessonContentFileUrl = (path) => {
     }
   }
   return fullUrl;
-  if (!path) return "";
-  if (/^https?:\/\//i.test(path)) return path;
-  const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/+$/, "");
-  return `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
 const basePath = (courseId, chapterId, lessonId) => `/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}/contents`;
