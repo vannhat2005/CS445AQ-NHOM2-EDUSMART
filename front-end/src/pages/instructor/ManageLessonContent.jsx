@@ -1,8 +1,9 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import lessonContentService, { getLessonContentFileUrl } from '../../services/lessonContentService';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { getInstructorId, getLessonQuiz, getQuizDetail, createQuiz, generateQuizWithAI, publishQuiz } from '../../services/instructorQuizService';
+import { deleteDraft } from '../../services/instructorDraftService';
 
 // Dữ liệu mặc định khi thêm nội dung
 const EMPTY_FORM = {
@@ -21,9 +22,9 @@ const CONTENT_TYPES = [
 
 // Lấy thông báo từ Backend
 const getSuccessMessage = (response) =>
-  response?.data?.message ||
-  response?.message;
+  response?.data?.message || response?.message || 'Thực hiện thành công.';
 
+// Lấy thông báo lỗi từ Backend
 const getErrorMessage = (error) =>
   error?.response?.data?.message ||
   error?.data?.message ||
@@ -57,13 +58,46 @@ const ManageLessonContent = () => {
   const [loading, setLoading] = useState(true);
   const [movingId, setMovingId] = useState(null);
 
-  // Trắc nghiệm: giữ nguyên chức năng hiện tại
-  const [quizState, setQuizState] = useState('none');
-  const [quizTitle, setQuizTitle] = useState(
-    'Trắc nghiệm kiểm tra kiến thức bài học'
-  );
+  // State quản lý trắc nghiệm bài học từ Backend
+  const [quiz, setQuiz] = useState(null);
+  const [instructorId, setInstructorId] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(true);
+  const [quizSaving, setQuizSaving] = useState(false);
+  const [quizError, setQuizError] = useState('');
+
+  // Ngăn gửi nhiều yêu cầu xử lý trắc nghiệm cùng lúc
+  const quizActionLock = useRef(false);
+
+  // Xác định trạng thái trắc nghiệm từ dữ liệu Backend
+  const quizState = !quiz ? 'none' :
+    quiz.status === 'Published' ? 'published' : 'draft';
+
+  // Lấy tên bài trắc nghiệm
+  const quizTitle = quiz?.title || 'Trắc nghiệm kiểm tra kiến thức bài học';
+
+  // Kiểm tra trạng thái đang xử lý trắc nghiệm
+  const isQuizBusy = quizLoading || quizSaving;
+
+  // State quản lý các modal trắc nghiệm
   const [showQuizMethodModal, setShowQuizMethodModal] = useState(false);
+  const [showManualQuizModal, setShowManualQuizModal] = useState(false);
+  const [showAIQuizModal, setShowAIQuizModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showDeleteQuizModal, setShowDeleteQuizModal] = useState(false);
+
+  // State dữ liệu tạo trắc nghiệm
+  const [quizForm, setQuizForm] = useState({
+    title: '',
+    questionCount: 4,
+    difficulty: 'BASIC'
+  });
+
+  // File PDF sử dụng để tạo trắc nghiệm bằng AI
+  const [quizPdfFile, setQuizPdfFile] = useState(null);
+
+  // ==================================================
+  // 1. QUẢN LÝ NỘI DUNG BÀI HỌC
+  // ==================================================
 
   // Lấy danh sách nội dung bài học từ Backend
   useEffect(() => {
@@ -74,17 +108,13 @@ const ManageLessonContent = () => {
 
       try {
         const response = await lessonContentService.getContents(
-          courseId,
-          chapterId,
-          lessonId
+          courseId, chapterId, lessonId
         );
 
         const data = getResponseData(response);
 
         if (active) {
-          setContents(
-            [...data].sort((a, b) => a.orderNum - b.orderNum)
-          );
+          setContents([...data].sort((a, b) => a.orderNum - b.orderNum));
         }
       } catch (error) {
         if (active) toast.error(getErrorMessage(error));
@@ -108,7 +138,7 @@ const ManageLessonContent = () => {
     setShowModal(true);
   };
 
-  // Mở modal sửa
+  // Mở modal sửa nội dung
   const handleOpenEdit = (item) => {
     setEditingContent(item);
     setFormData({
@@ -138,6 +168,7 @@ const ManageLessonContent = () => {
       contentType: type,
       contentData: ''
     }));
+
     setSelectedFile(null);
   };
 
@@ -147,7 +178,6 @@ const ManageLessonContent = () => {
     if (!file) return;
 
     const isVideo = formData.contentType === 'Video';
-
     const valid = isVideo
       ? /\.(mp4|webm)$/i.test(file.name)
       : /\.pdf$/i.test(file.name);
@@ -158,6 +188,7 @@ const ManageLessonContent = () => {
           ? 'Chỉ hỗ trợ video MP4 hoặc WebM.'
           : 'Vui lòng chọn file PDF.'
       );
+
       e.target.value = '';
       return;
     }
@@ -172,6 +203,7 @@ const ManageLessonContent = () => {
 
     const isFileType = ['Video', 'PDF'].includes(formData.contentType);
 
+    // Chuẩn bị dữ liệu gửi Backend
     const payload = new FormData();
     payload.append('title', formData.title);
     payload.append('contentType', formData.contentType);
@@ -190,47 +222,39 @@ const ManageLessonContent = () => {
     try {
       let response;
 
+      // Gọi API cập nhật hoặc thêm nội dung
       if (editingContent) {
         response = await lessonContentService.updateContent(
-          courseId,
-          chapterId,
-          lessonId,
-          editingContent.contentId,
-          payload
+          courseId, chapterId, lessonId,
+          editingContent.contentId, payload
         );
       } else {
         response = await lessonContentService.createContent(
-          courseId,
-          chapterId,
-          lessonId,
-          payload
+          courseId, chapterId, lessonId, payload
         );
       }
 
       // Lấy thông báo thành công từ Backend
       const message = getSuccessMessage(response);
 
-      // Tải lại danh sách
+      // Tải lại danh sách nội dung
       const listResponse = await lessonContentService.getContents(
-        courseId,
-        chapterId,
-        lessonId
+        courseId, chapterId, lessonId
       );
 
       const data = getResponseData(listResponse);
 
-      setContents(
-        [...data].sort((a, b) => a.orderNum - b.orderNum)
-      );
+      setContents([...data].sort((a, b) => a.orderNum - b.orderNum));
 
+      // Đóng modal và đặt lại dữ liệu
       setShowModal(false);
       setEditingContent(null);
       setSelectedFile(null);
       setFormData({ ...EMPTY_FORM });
 
       toast.success(message);
+
     } catch (error) {
-      // Lấy thông báo lỗi Validation hoặc nghiệp vụ từ Backend
       toast.error(getErrorMessage(error));
     } finally {
       setSaving(false);
@@ -246,27 +270,21 @@ const ManageLessonContent = () => {
 
     try {
       const response = await lessonContentService.moveContent(
-        courseId,
-        chapterId,
-        lessonId,
-        item.contentId,
-        direction
+        courseId, chapterId, lessonId,
+        item.contentId, direction
       );
 
+      // Tải lại danh sách sau khi thay đổi thứ tự
       const listResponse = await lessonContentService.getContents(
-        courseId,
-        chapterId,
-        lessonId
+        courseId, chapterId, lessonId
       );
 
       const data = getResponseData(listResponse);
 
-      setContents(
-        [...data].sort((a, b) => a.orderNum - b.orderNum)
-      );
+      setContents([...data].sort((a, b) => a.orderNum - b.orderNum));
 
-      // Thông báo thành công từ Backend
       toast.success(getSuccessMessage(response));
+
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -274,27 +292,493 @@ const ManageLessonContent = () => {
     }
   };
 
-  // Giữ nguyên xử lý chọn phương thức tạo trắc nghiệm
+  // ==================================================
+  // 2. LẤY TRẮC NGHIỆM BÀI HỌC TỪ BACKEND
+  // ==================================================
+
+  // Lấy thông tin bộ trắc nghiệm theo ID bài học
+  const fetchLessonQuiz = async () => {
+    setQuizLoading(true);
+    setQuizError('');
+
+    try {
+      // Lấy ID giảng viên để truyền vào đường dẫn API
+      const userId = await getInstructorId();
+      setInstructorId(userId);
+
+      // Gọi API lấy trắc nghiệm bài học
+      const response = await getLessonQuiz(userId, lessonId);
+      const data = response.result ?? null;
+
+      // Cập nhật dữ liệu trắc nghiệm
+      setQuiz(data);
+
+    } catch (error) {
+      console.error('Lỗi lấy trắc nghiệm bài học:', error);
+      setQuizError(getErrorMessage(error));
+      toast.error(getErrorMessage(error));
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  // Tải lại trắc nghiệm khi truy cập hoặc quay lại từ QuizEditor
+  useEffect(() => {
+    let active = true;
+
+    const loadQuiz = async () => {
+      setQuizLoading(true);
+      setQuizError('');
+      setQuiz(null);
+
+      try {
+        const userId = await getInstructorId();
+        const response = await getLessonQuiz(userId, lessonId);
+
+        if (active) {
+          setInstructorId(userId);
+          setQuiz(response.result ?? null);
+        }
+      } catch (error) {
+        if (active) {
+          setQuizError(getErrorMessage(error));
+          toast.error(getErrorMessage(error));
+        }
+      } finally {
+        if (active) setQuizLoading(false);
+      }
+    };
+
+    loadQuiz();
+
+    return () => {
+      active = false;
+    };
+  }, [courseId, chapterId, lessonId, location.key]);
+
+  // ==================================================
+  // 3. CHỌN PHƯƠNG THỨC TẠO TRẮC NGHIỆM
+  // ==================================================
+
+  // Mở modal chọn phương thức
+  const handleOpenQuizMethod = () => {
+    if (isQuizBusy || quizError || quizState !== 'none') return;
+
+    setShowQuizMethodModal(true);
+  };
+
+  // Chọn phương thức tạo trắc nghiệm
   const handleChooseQuizMethod = (method) => {
+    if (isQuizBusy || quizError || quizState !== 'none') return;
+
     setShowQuizMethodModal(false);
-    setQuizState('draft');
-    setQuizTitle(
-      method === 'AI'
-        ? 'Trắc nghiệm tạo bằng AI'
-        : 'Trắc nghiệm tạo thủ công'
-    );
 
-    toast('Cần tích hợp API để tạo và lưu bộ trắc nghiệm.', {
-      icon: 'ℹ️'
+    // Khởi tạo dữ liệu mặc định
+    setQuizForm({
+      title: `Trắc nghiệm kiểm tra kiến thức: ${lessonTitle}`.slice(0, 255),
+      questionCount: 4,
+      difficulty: 'BASIC'
     });
+
+    setQuizPdfFile(null);
+
+    // Mở modal tương ứng với phương thức được chọn
+    if (method === 'MANUAL') {
+      setShowManualQuizModal(true);
+    } else if (method === 'AI') {
+      setShowAIQuizModal(true);
+    }
   };
 
-  // Giữ nguyên xử lý xuất bản trắc nghiệm
-  const handlePublishQuiz = () => {
-    setQuizState('published');
-    setShowPublishModal(false);
-    toast.success('Đã chuyển trạng thái trắc nghiệm trên giao diện.');
+  // Đóng modal tạo trắc nghiệm thủ công
+  const handleCloseManualQuizModal = () => {
+    if (quizActionLock.current) return;
+    setShowManualQuizModal(false);
   };
+
+  // Đóng modal tạo trắc nghiệm bằng AI
+  const handleCloseAIQuizModal = () => {
+    if (quizActionLock.current) return;
+    setShowAIQuizModal(false);
+    setQuizPdfFile(null);
+  };
+
+  // ==================================================
+  // 4. ĐIỀU HƯỚNG ĐẾN QUIZEDITOR
+  // ==================================================
+
+  // Điều hướng đến trang biên soạn trắc nghiệm
+  const navigateToQuizEditor = (quizData, readOnly = false) => {
+    navigate(
+      `/instructor/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}/quiz`,
+      {
+        state: {
+          instructorId,
+          courseTitle,
+          chapterTitle,
+          lessonTitle,
+          type: 'LESSON_QUIZ',
+          method: 'MANUAL',
+          readOnly,
+
+          // Trắc nghiệm đã được tạo trong Database
+          isNew: false,
+
+          // Trắc nghiệm bài học không cần modal cấu hình
+          showConfigModal: false,
+
+          // Truyền dữ liệu trắc nghiệm sang QuizEditor
+          quiz: {
+            ...quizData,
+            courseId: Number(courseId),
+            chapterId: Number(chapterId),
+            lessonId: Number(lessonId),
+            timeLimit: null,
+            passingScore: null
+          }
+        }
+      }
+    );
+  };
+
+  // ==================================================
+  // 5. TẠO TRẮC NGHIỆM THỦ CÔNG
+  // ==================================================
+
+  const handleCreateManualQuiz = async (e) => {
+    e.preventDefault();
+
+    if (isQuizBusy || quizError || !instructorId ||
+        quizActionLock.current) return;
+
+    const title = quizForm.title.trim();
+
+    // Kiểm tra tên bài trắc nghiệm
+    if (!title) {
+      toast.error('Vui lòng nhập tên bài trắc nghiệm.');
+      return;
+    }
+
+    // Kiểm tra độ dài tên bài trắc nghiệm
+    if (title.length > 255) {
+      toast.error('Tên bài trắc nghiệm không được vượt quá 255 ký tự.');
+      return;
+    }
+
+    // Mỗi bài học chỉ có một bộ trắc nghiệm
+    if (quizState !== 'none') {
+      toast.error('Bài học đã có bộ trắc nghiệm.');
+      return;
+    }
+
+    quizActionLock.current = true;
+    setQuizSaving(true);
+
+    try {
+      // Dữ liệu tạo trắc nghiệm bài học
+      const payload = {
+        title,
+        lessonId: Number(lessonId),
+        chapterId: null,
+        timeLimit: null,
+        passingScore: null
+      };
+
+      // Gọi API tạo bộ trắc nghiệm bản nháp
+      const response = await createQuiz(instructorId, payload);
+      const createdQuiz = response.result;
+
+      // Kiểm tra dữ liệu trả về
+      if (!createdQuiz?.quizId) {
+        throw new Error('Không xác định được ID bộ trắc nghiệm.');
+      }
+
+      // Cập nhật dữ liệu từ Backend
+      setQuiz(createdQuiz);
+
+      // Đóng modal tạo trắc nghiệm
+      setShowManualQuizModal(false);
+
+      // Thông báo thành công
+      toast.success(
+        response.message || 'Tạo bản nháp trắc nghiệm thành công.'
+      );
+
+      // Chuyển sang trang biên soạn câu hỏi
+      navigateToQuizEditor(createdQuiz);
+
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+
+      // Đồng bộ lại dữ liệu nếu có lỗi khi tạo
+      await fetchLessonQuiz();
+    } finally {
+      setQuizSaving(false);
+      quizActionLock.current = false;
+    }
+  };
+
+  // ==================================================
+  // 6. TẠO TRẮC NGHIỆM BẰNG AI
+  // ==================================================
+
+  // Kiểm tra và chọn tài liệu PDF để tạo trắc nghiệm bằng AI
+  const handleSelectQuizPdf = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kiểm tra định dạng tài liệu
+    if (!/\.pdf$/i.test(file.name)) {
+      toast.error('Vui lòng chọn tài liệu có định dạng PDF.');
+      e.target.value = '';
+      return;
+    }
+
+    // Kiểm tra dung lượng tài liệu
+    if (file.size === 0) {
+      toast.error('Tài liệu PDF không được để trống.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Tài liệu PDF không được vượt quá 10 MB.');
+      e.target.value = '';
+      setQuizPdfFile(null);
+      return;
+    }
+
+    setQuizPdfFile(file);
+  };
+
+  // Định dạng dung lượng tài liệu PDF
+  const formatFileSize = (size) => {
+    if (size < 1024) {
+      return `${size} B`;
+    }
+
+    if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Tạo câu hỏi trắc nghiệm bằng AI
+  const handleCreateAIQuiz = async (e) => {
+    e.preventDefault();
+
+    if (isQuizBusy || quizError || !instructorId || quizActionLock.current) return;
+
+    const title = quizForm.title.trim();
+
+    // Kiểm tra tên bài trắc nghiệm
+    if (!title) {
+      toast.error('Vui lòng nhập tên bài trắc nghiệm.');
+      return;
+    }
+
+    if (title.length > 255) {
+      toast.error('Tên bài trắc nghiệm không được vượt quá 255 ký tự.');
+      return;
+    }
+
+    // Kiểm tra tài liệu PDF
+    if (!quizPdfFile) {
+      toast.error('Vui lòng tải lên tài liệu PDF bài học.');
+      return;
+    }
+
+    // Kiểm tra bài học đã có trắc nghiệm hay chưa
+    if (quizState !== 'none') {
+      toast.error('Bài học đã có bộ trắc nghiệm.');
+      return;
+    }
+
+    // Kiểm tra số lượng câu hỏi
+    const questionCount = Number(quizForm.questionCount);
+    if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 8) {
+      toast.error('Số lượng câu hỏi phải từ 3 đến 8.');
+      return;
+    }
+
+    // Kiểm tra độ khó mục tiêu
+    if (!['BASIC', 'INTERMEDIATE', 'ADVANCED'].includes(quizForm.difficulty)) {
+      toast.error('Độ khó mục tiêu không hợp lệ.');
+      return;
+    }
+
+    // Chuẩn bị dữ liệu gửi đến Backend khi tích hợp API AI
+    const payload = new FormData();
+    payload.append('title', title);
+    payload.append('file', quizPdfFile);
+    payload.append('questionCount', questionCount);
+    payload.append('difficulty', quizForm.difficulty);
+    payload.append('lessonId', lessonId);
+
+    quizActionLock.current = true;
+    setQuizSaving(true);
+
+    try {
+      const response = await generateQuizWithAI(instructorId, payload);
+      const createdQuiz = response.result;
+
+      if (!createdQuiz?.quizId || !Array.isArray(createdQuiz.questions)) {
+        throw new Error('Backend không trả về bộ trắc nghiệm hợp lệ.');
+      }
+
+      setQuiz(createdQuiz);
+      setShowAIQuizModal(false);
+      setQuizPdfFile(null);
+      toast.success(response.message || `AI đã tạo ${createdQuiz.questions.length} câu hỏi.`);
+      navigateToQuizEditor(createdQuiz);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      await fetchLessonQuiz();
+    } finally {
+      setQuizSaving(false);
+      quizActionLock.current = false;
+    }
+  };
+
+  // ==================================================
+  // 7. XEM VÀ CHỈNH SỬA TRẮC NGHIỆM
+  // ==================================================
+
+  // Xem bài trắc nghiệm ở chế độ chỉ đọc
+  const handleViewQuiz = () => {
+    if (!quiz || isQuizBusy || quizError) return;
+
+    navigateToQuizEditor(quiz, true);
+  };
+
+  // Tiếp tục chỉnh sửa bài trắc nghiệm bản nháp
+  const handleEditQuiz = () => {
+    if (!quiz || quizState !== 'draft' ||
+        isQuizBusy || quizError) return;
+
+    navigateToQuizEditor(quiz, false);
+  };
+
+  // ==================================================
+  // 8. XUẤT BẢN TRẮC NGHIỆM
+  // ==================================================
+
+  // Xuất bản trắc nghiệm thông qua Backend
+  const handlePublishQuiz = async () => {
+    if (!quiz || quizState !== 'draft' ||
+        isQuizBusy || quizError || quizActionLock.current) return;
+
+    quizActionLock.current = true;
+    setQuizSaving(true);
+
+    try {
+      // Lấy chi tiết bộ trắc nghiệm mới nhất
+      const detailResponse = await getQuizDetail(
+        instructorId, quiz.quizId
+      );
+
+      const quizDetail = detailResponse.result;
+
+      // Kiểm tra trạng thái bộ trắc nghiệm
+      if (!quizDetail || quizDetail.status !== 'Draft') {
+        toast.error('Bài trắc nghiệm không còn ở trạng thái bản nháp.');
+        setShowPublishModal(false);
+        await fetchLessonQuiz();
+        return;
+      }
+
+      const questions = quizDetail.questions;
+
+      // Kiểm tra số lượng câu hỏi tối thiểu
+      if (!Array.isArray(questions) || questions.length < 3) {
+        toast.error('Bài trắc nghiệm phải có ít nhất 3 câu hỏi.');
+        return;
+      }
+
+      // Kiểm tra nội dung và đáp án của từng câu hỏi
+      const invalidQuestion = questions.findIndex((question) =>
+        !question.content?.trim() ||
+        !Array.isArray(question.options) ||
+        question.options.length < 2 ||
+        question.options.length > 6 ||
+        question.options.some((option) => !option?.trim()) ||
+        !Number.isInteger(question.correctAnswer) ||
+        question.correctAnswer < 0 ||
+        question.correctAnswer >= question.options.length ||
+        new Set(
+          question.options.map((option) => option.trim().toLowerCase())
+        ).size !== question.options.length
+      );
+
+      // Thông báo câu hỏi không hợp lệ
+      if (invalidQuestion !== -1) {
+        toast.error(`Câu hỏi ${invalidQuestion + 1} chưa hợp lệ.`);
+        return;
+      }
+
+      // Gọi API xuất bản trắc nghiệm
+      const response = await publishQuiz(instructorId, quiz.quizId);
+
+      // Đóng modal xác nhận
+      setShowPublishModal(false);
+
+      // Thông báo thành công
+      toast.success(
+        response.message || 'Xuất bản trắc nghiệm thành công.'
+      );
+
+      // Tải lại dữ liệu trắc nghiệm từ Database
+      await fetchLessonQuiz();
+
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setQuizSaving(false);
+      quizActionLock.current = false;
+    }
+  };
+
+  // ==================================================
+  // 9. XÓA BẢN NHÁP TRẮC NGHIỆM
+  // ==================================================
+
+  // Xóa bản nháp trắc nghiệm thông qua Backend
+  const handleDeleteQuiz = async () => {
+    if (!quiz || quizState !== 'draft' ||
+        isQuizBusy || quizError || quizActionLock.current) return;
+
+    quizActionLock.current = true;
+    setQuizSaving(true);
+
+    try {
+      // Gọi API xóa bản nháp và dữ liệu liên quan
+      const response = await deleteDraft(instructorId, quiz.quizId);
+
+      // Cập nhật giao diện sau khi xóa thành công
+      setQuiz(null);
+      setShowDeleteQuizModal(false);
+      setQuizPdfFile(null);
+
+      // Thông báo kết quả từ Backend
+      toast.success(
+        response?.message || 'Xóa bản nháp trắc nghiệm thành công.'
+      );
+
+      // Đồng bộ lại dữ liệu từ Database
+      await fetchLessonQuiz();
+
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setQuizSaving(false);
+      quizActionLock.current = false;
+    }
+  };
+
+  // ==================================================
+  // 10. GIAO DIỆN QUẢN LÝ NỘI DUNG BÀI HỌC
+  // ==================================================
 
   return (
     <div className="flex flex-col w-full px-2 pt-4 pb-12 gap-6">
@@ -302,10 +786,7 @@ const ManageLessonContent = () => {
       {/* Breadcrumb */}
       <div className="flex items-center justify-between gap-4">
         <nav className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
-          <Link
-            to="/instructor/courses"
-            className="hover:text-blue-600"
-          >
+          <Link to="/instructor/courses" className="hover:text-blue-600">
             Khóa học được phân công
           </Link>
 
@@ -313,10 +794,7 @@ const ManageLessonContent = () => {
             chevron_right
           </span>
 
-          <Link
-            to={`/instructor/courses/${courseId}`}
-            className="hover:text-blue-600"
-          >
+          <Link to={`/instructor/courses/${courseId}`} className="hover:text-blue-600">
             Chi tiết khóa học
           </Link>
 
@@ -324,10 +802,7 @@ const ManageLessonContent = () => {
             chevron_right
           </span>
 
-          <Link
-            to={`/instructor/courses/${courseId}/chapters`}
-            className="hover:text-blue-600"
-          >
+          <Link to={`/instructor/courses/${courseId}/chapters`} className="hover:text-blue-600">
             Quản lý chương học
           </Link>
 
@@ -335,10 +810,7 @@ const ManageLessonContent = () => {
             chevron_right
           </span>
 
-          <Link
-            to={lessonPath}
-            className="hover:text-blue-600"
-          >
+          <Link to={lessonPath} className="hover:text-blue-600">
             Quản lý bài học
           </Link>
 
@@ -391,6 +863,7 @@ const ManageLessonContent = () => {
                 layers
               </span>
             </div>
+
             <h2 className="text-base font-bold text-gray-900">
               Nội dung bài học
             </h2>
@@ -427,28 +900,19 @@ const ManageLessonContent = () => {
             <tbody className="text-sm text-gray-900 divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-gray-500"
-                  >
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
                     Đang tải nội dung...
                   </td>
                 </tr>
               ) : contents.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-gray-500"
-                  >
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
                     Bài học này chưa có nội dung
                   </td>
                 </tr>
               ) : (
                 contents.map((item, index) => (
-                  <tr
-                    key={item.contentId}
-                    className="hover:bg-gray-50/60"
-                  >
+                  <tr key={item.contentId} className="hover:bg-gray-50/60">
                     <td className="py-4 px-6 text-gray-400">
                       {index + 1}
                     </td>
@@ -513,6 +977,7 @@ const ManageLessonContent = () => {
                               : 'bg-rose-500'
                           }`}
                         />
+
                         {item.status === 'Active'
                           ? 'Hoạt động'
                           : 'Không hoạt động'}
@@ -521,8 +986,6 @@ const ManageLessonContent = () => {
 
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        
-
                         <button
                           onClick={() => handleOpenEdit(item)}
                           className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-blue-600 text-xs font-medium inline-flex items-center gap-1"
@@ -542,7 +1005,7 @@ const ManageLessonContent = () => {
         </div>
       </section>
 
-      {/* Trắc nghiệm bài học - giữ nguyên */}
+      {/* Trắc nghiệm bài học */}
       <section className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -564,7 +1027,8 @@ const ManageLessonContent = () => {
 
           {quizState === 'none' && (
             <button
-              onClick={() => setShowQuizMethodModal(true)}
+              onClick={handleOpenQuizMethod}
+              disabled={isQuizBusy || !!quizError}
               className="h-10 px-4 rounded-lg bg-blue-600 text-white font-semibold text-sm flex items-center gap-1.5 hover:bg-blue-700"
             >
               <span className="material-symbols-outlined text-[18px]">
@@ -589,6 +1053,7 @@ const ManageLessonContent = () => {
                   <h3 className="text-sm font-bold text-gray-900">
                     {quizTitle}
                   </h3>
+
                   <span
                     className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                       quizState === 'draft'
@@ -604,22 +1069,43 @@ const ManageLessonContent = () => {
               </div>
 
               <div className="flex items-center gap-2">
+
+                {/* Xem trắc nghiệm ở cả trạng thái Draft và Published */}
                 <button
-                  onClick={() =>
-                    toast('Chưa tích hợp chức năng xem trắc nghiệm.')
-                  }
+                  onClick={handleViewQuiz}
+                  disabled={isQuizBusy || !!quizError}
                   className="px-3 py-1.5 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold border border-gray-200"
                 >
                   Xem
                 </button>
 
+                {/* Các thao tác chỉ dành cho trắc nghiệm bản nháp */}
                 {quizState === 'draft' && (
-                  <button
-                    onClick={() => setShowPublishModal(true)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
-                  >
-                    Xuất bản
-                  </button>
+                  <>
+                    <button
+                      onClick={handleEditQuiz}
+                      disabled={isQuizBusy || !!quizError}
+                      className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold border border-blue-200"
+                    >
+                      Tiếp tục chỉnh sửa
+                    </button>
+
+                    <button
+                      onClick={() => setShowPublishModal(true)}
+                      disabled={isQuizBusy || !!quizError}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                    >
+                      Xuất bản
+                    </button>
+
+                    <button
+                      onClick={() => setShowDeleteQuizModal(true)}
+                      disabled={isQuizBusy || !!quizError}
+                      className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold border border-red-200"
+                    >
+                      Xóa bản nháp
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -663,6 +1149,7 @@ const ManageLessonContent = () => {
               onSubmit={handleSubmit}
               noValidate
             >
+
               {/* Tiêu đề nội dung */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-700">
@@ -839,9 +1326,7 @@ const ManageLessonContent = () => {
                         className="accent-blue-600"
                       />
 
-                      <span
-                        className={`w-2 h-2 rounded-full ${status.color}`}
-                      />
+                      <span className={`w-2 h-2 rounded-full ${status.color}`} />
 
                       <span className="text-sm font-medium text-gray-900">
                         {status.label}
@@ -909,9 +1394,7 @@ const ManageLessonContent = () => {
                   <video
                     controls
                     className="w-full max-h-[65vh] rounded-lg bg-black"
-                    src={getLessonContentFileUrl(
-                      previewContent.contentData
-                    )}
+                    src={getLessonContentFileUrl(previewContent.contentData)}
                   >
                     Trình duyệt không hỗ trợ phát video.
                   </video>
@@ -926,9 +1409,7 @@ const ManageLessonContent = () => {
                 previewContent.contentData ? (
                   <iframe
                     title={previewContent.title}
-                    src={getLessonContentFileUrl(
-                      previewContent.contentData
-                    )}
+                    src={getLessonContentFileUrl(previewContent.contentData)}
                     className="w-full h-[65vh] border border-gray-200 rounded-lg"
                   />
                 ) : (
@@ -1017,6 +1498,264 @@ const ManageLessonContent = () => {
         </div>
       )}
 
+      {/* Modal tạo bộ trắc nghiệm thủ công */}
+      {showManualQuizModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tạo bộ trắc nghiệm thủ công"
+            className="w-full max-w-lg bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200"
+          >
+            <div className="px-6 py-4 bg-[#eff4ff] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#00288e] text-[22px]">
+                  edit_document
+                </span>
+
+                <h3 className="text-base font-bold text-gray-900">
+                  Tạo bộ trắc nghiệm thủ công
+                </h3>
+              </div>
+
+              <button
+                onClick={handleCloseManualQuizModal}
+                disabled={quizSaving}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateManualQuiz} noValidate>
+              <div className="p-6">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Tên bài trắc nghiệm
+                    <span className="text-red-500"> *</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={quizForm.title}
+                    placeholder="Nhập tên bài trắc nghiệm"
+                    disabled={quizSaving}
+                    onChange={(e) =>
+                      setQuizForm({
+                        ...quizForm,
+                        title: e.target.value
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-[#eff4ff] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseManualQuizModal}
+                  disabled={quizSaving}
+                  className="px-4 py-2 rounded-lg bg-[#e5eeff] hover:bg-blue-100 text-gray-700 text-sm font-semibold"
+                >
+                  Hủy
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isQuizBusy || !!quizError}
+                  className="px-5 py-2 rounded-lg bg-[#1e40af] hover:bg-[#00288e] text-white text-sm font-semibold inline-flex items-center gap-2"
+                >
+                  Tiếp tục
+                  <span className="material-symbols-outlined text-[18px]">
+                    arrow_forward
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal tạo trắc nghiệm bằng AI */}
+      {showAIQuizModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tạo trắc nghiệm bằng AI"
+            className="w-full max-w-xl bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200 max-h-[90vh] flex flex-col"
+          >
+            <div className="px-6 py-4 bg-[#eff4ff] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600 text-[22px]">
+                  auto_awesome
+                </span>
+
+                <h3 className="text-base font-bold text-gray-900">
+                  Tạo trắc nghiệm bằng AI
+                </h3>
+              </div>
+
+              <button
+                onClick={handleCloseAIQuizModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleCreateAIQuiz}
+              className="flex flex-col min-h-0"
+              noValidate
+            >
+              <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+
+                {/* Tên bài trắc nghiệm */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Tên bài trắc nghiệm
+                    <span className="text-red-500"> *</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={quizForm.title}
+                    placeholder="Nhập tên bài trắc nghiệm"
+                    onChange={(e) =>
+                      setQuizForm({
+                        ...quizForm,
+                        title: e.target.value
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                {/* Tải lên tài liệu PDF */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Tải lên tài liệu PDF bài học
+                    <span className="text-red-500"> *</span>
+                  </label>
+
+                  <label className="flex flex-col items-center justify-center gap-2 min-h-[140px] p-5 rounded-xl bg-[#eff4ff] border border-dashed border-gray-300 hover:border-blue-500 cursor-pointer transition-colors">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-blue-600 text-[24px]">
+                        upload_file
+                      </span>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-800 break-all">
+                        {quizPdfFile
+                          ? quizPdfFile.name
+                          : 'Nhấn để tải lên tài liệu PDF'}
+                      </p>
+
+                      <p className="text-xs text-gray-500 mt-1">
+                        {quizPdfFile
+                          ? `Dung lượng: ${formatFileSize(quizPdfFile.size)} • Sẵn sàng phân tích AI`
+                          : 'Chỉ hỗ trợ tài liệu định dạng PDF'}
+                      </p>
+                    </div>
+
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleSelectQuizPdf}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Số lượng câu hỏi và độ khó mục tiêu */}
+                <div className="grid grid-cols-2 gap-4">
+
+                  {/* Số lượng câu hỏi */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-gray-700">
+                      Số lượng câu hỏi
+                    </label>
+
+                    <select
+                      value={quizForm.questionCount}
+                      onChange={(e) =>
+                        setQuizForm({
+                          ...quizForm,
+                          questionCount: Number(e.target.value)
+                        })
+                      }
+                      className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      {[3, 4, 5, 6, 7, 8].map((count) => (
+                        <option key={count} value={count}>{count} câu hỏi</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Độ khó mục tiêu */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-gray-700">
+                      Độ khó mục tiêu
+                    </label>
+
+                    <select
+                      value={quizForm.difficulty}
+                      onChange={(e) =>
+                        setQuizForm({
+                          ...quizForm,
+                          difficulty: e.target.value
+                        })
+                      }
+                      className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      <option value="BASIC">
+                        Cơ bản - Thông hiểu
+                      </option>
+                      <option value="INTERMEDIATE">
+                        Trung bình - Vận dụng
+                      </option>
+                      <option value="ADVANCED">
+                        Nâng cao - Vận dụng cao
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Nút hủy và tạo câu hỏi bằng AI */}
+              <div className="px-6 py-4 bg-[#eff4ff] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseAIQuizModal}
+                  className="px-4 py-2 rounded-lg bg-[#e5eeff] hover:bg-blue-100 text-gray-700 text-sm font-semibold"
+                >
+                  Hủy
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isQuizBusy || !!quizError}
+                  className="px-5 py-2 rounded-lg bg-[#1e40af] hover:bg-[#00288e] text-white text-sm font-semibold inline-flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    auto_awesome
+                  </span>
+                  Tạo câu hỏi bằng AI
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal xác nhận xuất bản trắc nghiệm */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -1040,6 +1779,7 @@ const ManageLessonContent = () => {
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
               <button
                 onClick={() => setShowPublishModal(false)}
+                disabled={quizSaving}
                 className="flex-1 h-10 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold"
               >
                 Hủy
@@ -1047,6 +1787,7 @@ const ManageLessonContent = () => {
 
               <button
                 onClick={handlePublishQuiz}
+                disabled={isQuizBusy || !!quizError}
                 className="flex-1 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
               >
                 Xác nhận xuất bản
@@ -1055,6 +1796,48 @@ const ManageLessonContent = () => {
           </div>
         </div>
       )}
+
+      {/* Modal xác nhận xóa bản nháp trắc nghiệm */}
+      {showDeleteQuizModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6 text-center border border-gray-200">
+            <div className="w-14 h-14 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[32px]">
+                delete
+              </span>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Xóa bản nháp trắc nghiệm?
+            </h3>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc chắn muốn xóa bộ trắc nghiệm{' '}
+              <strong>{quizTitle}</strong> không?
+              Hành động này không thể hoàn tác.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setShowDeleteQuizModal(false)}
+                disabled={quizSaving}
+                className="flex-1 h-10 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold"
+              >
+                Hủy
+              </button>
+
+              <button
+                onClick={handleDeleteQuiz}
+                disabled={isQuizBusy || !!quizError}
+                className="flex-1 h-10 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

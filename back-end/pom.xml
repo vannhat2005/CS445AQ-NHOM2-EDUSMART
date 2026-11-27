@@ -121,6 +121,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
+		<!-- Thư viện hỗ trợ đọc và ghi file Excel -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.4.1</version>
+		</dependency>
 
 		<!-- MongoDB Drivers (Local Libs) -->
 		<dependency>

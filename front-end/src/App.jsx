@@ -33,7 +33,9 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import InstructorLayout from "./layouts/InstructorLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import StudentLayout from "./layouts/StudentLayout";
-
+import AdminProfile from "./pages/admin/AdminProfile";
+import StudentProfile from "./pages/student/StudentProfile";
+import InstructorProfile from "./pages/instructor/InstructorProfile";
 // ==========================================
 // INSTRUCTOR PAGES
 // ==========================================
@@ -193,7 +195,7 @@ function AppRoutes() {
           path="/instructor"
           element={<InstructorLayout />}
         >
-
+          <Route path="profile" element={<InstructorProfile />} />
           <Route
             index
             element={<InstructorDashboard />}
@@ -224,8 +226,15 @@ function AppRoutes() {
             element={<ManageLessonContent />}
           />
 
+          {/* Biên soạn trắc nghiệm bài học */}
           <Route
             path="courses/:courseId/chapters/:chapterId/lessons/:lessonId/quiz"
+            element={<QuizEditor />}
+          />
+
+          {/* Biên soạn bài kiểm tra cuối chương */}
+          <Route
+            path="courses/:courseId/chapters/:chapterId/quiz"
             element={<QuizEditor />}
           />
 
@@ -258,11 +267,12 @@ function AppRoutes() {
           />
         }
       >
+        
         <Route
           path="/admin"
           element={<AdminLayout />}
         >
-
+          <Route path="profile" element={<AdminProfile />} />
           <Route
             index
             element={<AdminDashboard />}
@@ -313,7 +323,7 @@ function AppRoutes() {
         {/* =================================
             PUBLIC STUDENT PAGES
         ================================= */}
-
+        <Route path="profile" element={<StudentProfile />} />
         <Route
           index
           element={<HomeContent />}

@@ -81,6 +81,7 @@ app:
   upload:
     images-dir: uploads/images
     videos-dir: uploads/videos
+    avatar-dir: uploads/avatars
 
   jwt:
     secret: ${JWT_SECRET}
@@ -137,9 +138,9 @@ ai:
   llm:
     provider: "gemini"
     api-key: ${GEMINI_API_KEY:}
-    model-name: "gemini-1.5-flash"
+    model-name: ${GEMINI_MODEL_NAME:}
     temperature: 0.3
-    max-tokens: 2048
+    max-tokens: 4096
 
   embeddings:
     provider: "local"

@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useCallback,
@@ -68,6 +67,18 @@ const mapUser = (result) => {
       result.user?.fullName ??
       "",
 
+    // Địa chỉ email người dùng
+    email:
+      result.email ??
+      result.user?.email ??
+      "",
+
+    // Đường dẫn ảnh đại diện người dùng
+    avatarUrl:
+      result.avatarUrl ??
+      result.user?.avatarUrl ??
+      null,
+
     role,
   };
 };
@@ -77,6 +88,45 @@ const mapUser = (result) => {
 // ========================================
 
 const USER_STORAGE_KEY = "user";
+
+// ========================================
+// LẤY THÔNG TIN CÁ NHÂN MỚI NHẤT
+// ========================================
+
+const fetchPersonalProfile = async (currentUser) => {
+  if (!currentUser) return null;
+
+  try {
+    // Lấy thông tin cá nhân từ Backend
+    const response = await api.get("/users/my-info");
+
+    const profile = response.data?.result;
+
+    if (!profile) return currentUser;
+
+    // Giữ nguyên ID và vai trò của tài khoản,
+    // chỉ đồng bộ thông tin cá nhân mới nhất
+    return {
+      ...currentUser,
+      username: profile.username ?? currentUser.username,
+      fullName: profile.fullName ?? currentUser.fullName,
+      email: profile.email ?? currentUser.email,
+      avatarUrl: profile.avatarUrl !== undefined
+        ? profile.avatarUrl
+        : currentUser.avatarUrl,
+    };
+
+  } catch (error) {
+    // Không làm mất phiên đăng nhập nếu API
+    // quản lý thông tin cá nhân gặp lỗi
+    console.error(
+      "Không thể đồng bộ thông tin cá nhân:",
+      error
+    );
+
+    return currentUser;
+  }
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -90,6 +140,27 @@ export function AuthProvider({ children }) {
 
   // true khi đang khôi phục đăng nhập
   const [loading, setLoading] = useState(true);
+
+  // ========================================
+  // ĐỒNG BỘ USER VÀO LOCAL STORAGE
+  // ========================================
+
+  useEffect(() => {
+    try {
+      if (user) {
+        // Lưu thông tin người dùng mới nhất
+        localStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify(user)
+        );
+      } else {
+        // Xóa thông tin khi đăng xuất
+        localStorage.removeItem(USER_STORAGE_KEY);
+      }
+    } catch {
+      // Bỏ qua lỗi lưu trữ
+    }
+  }, [user]);
 
   // ========================================
   // KHÔI PHỤC PHIÊN ĐĂNG NHẬP KHI F5
@@ -116,6 +187,8 @@ export function AuthProvider({ children }) {
           );
         }
 
+        if (!active) return;
+
         // Lưu Access Token mới vào RAM
         setAccessToken(result.accessToken);
 
@@ -141,17 +214,14 @@ export function AuthProvider({ children }) {
           );
         }
 
+        // Đồng bộ họ tên, email và ảnh đại diện
+        // mới nhất từ Backend khi F5
+        currentUser = await fetchPersonalProfile(currentUser);
+
         if (active) {
           setUser(currentUser);
-          try {
-            localStorage.setItem(
-              USER_STORAGE_KEY,
-              JSON.stringify(currentUser)
-            );
-          } catch {
-            // bỏ qua lỗi lưu trữ
-          }
         }
+
       } catch (error) {
         console.error(
           "Không thể khôi phục phiên đăng nhập:",
@@ -163,6 +233,7 @@ export function AuthProvider({ children }) {
           localStorage.removeItem(USER_STORAGE_KEY);
           setUser(null);
         }
+
       } finally {
         if (active) {
           setLoading(false);
@@ -228,15 +299,11 @@ export function AuthProvider({ children }) {
         );
       }
 
+      // Lấy họ tên, email và ảnh đại diện
+      // mới nhất sau khi đăng nhập
+      currentUser = await fetchPersonalProfile(currentUser);
+
       setUser(currentUser);
-      try {
-        localStorage.setItem(
-          USER_STORAGE_KEY,
-          JSON.stringify(currentUser)
-        );
-      } catch {
-        // bỏ qua lỗi lưu trữ
-      }
       setLoading(false);
 
       return currentUser;
@@ -262,6 +329,50 @@ export function AuthProvider({ children }) {
       setUser(null);
       setLoading(false);
     }
+  }, []);
+
+  // ========================================
+  // CẬP NHẬT THÔNG TIN CÁ NHÂN
+  // ========================================
+
+  const updateUserProfile = useCallback((updatedProfile) => {
+    if (!updatedProfile) return;
+
+    setUser((previousUser) => {
+      if (!previousUser) return previousUser;
+
+      // Kiểm tra thông tin cập nhật có thuộc
+      // tài khoản đang đăng nhập hay không
+      if (
+        updatedProfile.userId != null &&
+        previousUser.userId != null &&
+        String(updatedProfile.userId) !== String(previousUser.userId)
+      ) {
+        return previousUser;
+      }
+
+      // Giữ nguyên ID, username và role.
+      // Chỉ cập nhật họ tên, email và ảnh đại diện.
+      return {
+        ...previousUser,
+
+        fullName:
+          updatedProfile.fullName ??
+          previousUser.fullName,
+
+        email:
+          updatedProfile.email ??
+          previousUser.email,
+
+        avatarUrl:
+          updatedProfile.avatarUrl !== undefined
+            ? updatedProfile.avatarUrl
+            : previousUser.avatarUrl,
+      };
+    });
+
+    // useEffect sẽ tự động đồng bộ user
+    // mới nhất vào localStorage.
   }, []);
 
   // ========================================
@@ -320,6 +431,9 @@ export function AuthProvider({ children }) {
 
     login,
     logout,
+
+    // Cập nhật thông tin cá nhân
+    updateUserProfile,
 
     hasRole,
     hasAnyRole,

@@ -142,6 +142,15 @@ const CourseDetailInstructor = () => {
     );
   };
 
+  // Điều hướng đến trang danh sách sinh viên của khóa học
+  const handleViewStudents = () => {
+    navigate(`/instructor/courses/${course.courseId}/students`, {
+      state: {
+        courseTitle: course.title,
+        courseStatus: course.status
+      }
+    });
+  };
   // Trạng thái đang tải
   if (loading) {
     return (
@@ -271,19 +280,15 @@ const CourseDetailInstructor = () => {
 
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
 
+                  {/* Nút chuyển đến trang danh sách sinh viên */}
                   <button
                     type="button"
-                    onClick={() =>
-                      toast('Chức năng danh sách sinh viên sẽ được kết nối sau.')
-                    }
+                    onClick={handleViewStudents}
                     className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-blue-600 font-medium text-sm border border-gray-200 shadow-xs transition-colors active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[18px]">
-                      group
-                    </span>
+                    <span className="material-symbols-outlined text-[18px]">group</span>
                     <span>Danh sách sinh viên</span>
                   </button>
-
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${status.style}`}
                   >
