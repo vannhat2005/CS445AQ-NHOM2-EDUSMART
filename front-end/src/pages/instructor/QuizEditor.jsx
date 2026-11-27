@@ -9,7 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import {
   getInstructorId, getChapterQuiz, getLessonQuiz, getQuizDetail,
-  createQuiz, updateQuizTitle, addQuestion, updateQuestion,
+  createQuiz, generateQuizWithAI, updateQuizTitle, addQuestion, updateQuestion,
   deleteQuestion, publishQuiz
 } from '../../services/instructorQuizService';
 
@@ -87,6 +87,7 @@ const QuizEditorContent = ({ courseId, chapterId, lessonId }) => {
 
   // Lấy thông tin bài kiểm tra từ trang trước
   const quizData = location.state?.quiz;
+  const aiData = location.state?.aiData;
 
   // Xác định trang truy cập trước đó
   const fromDraftManagement = location.state?.from === 'draft-management';
@@ -468,9 +469,40 @@ const previewPoint = questions.length > 0
       return;
     }
 
-    // Chưa tích hợp API AI nên không tạo bản nháp rỗng
     if (method === 'AI') {
-      toast.error('Chức năng tạo câu hỏi bằng AI chưa được tích hợp Backend');
+      const questionCount = Number(aiData?.questionCount);
+      if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 8) {
+        toast.error('Số lượng câu hỏi phải từ 3 đến 8');
+        return;
+      }
+
+      if (!['BASIC', 'INTERMEDIATE', 'ADVANCED'].includes(aiData?.difficulty)) {
+        toast.error('Độ khó mục tiêu không hợp lệ');
+        return;
+      }
+
+      if (!aiData?.file) {
+        toast.error('Vui lòng chọn tài liệu PDF chương học');
+        return;
+      }
+
+      const payload = new FormData();
+      payload.append('title', title);
+      payload.append('chapterId', Number(chapterId));
+      payload.append('timeLimit', duration);
+      payload.append('passingScore', score);
+      payload.append('questionCount', questionCount);
+      payload.append('difficulty', aiData.difficulty);
+      payload.append('file', aiData.file);
+
+      const success = await executeQuizAction(
+        () => generateQuizWithAI(instructorId, payload),
+        `AI đã tạo ${questionCount} câu hỏi. Hãy kiểm tra trước khi xuất bản.`
+      );
+
+      if (success) {
+        setShowConfigModal(false);
+      }
       return;
     }
 

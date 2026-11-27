@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import lessonContentService, { getLessonContentFileUrl } from '../../services/lessonContentService';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { getInstructorId, getLessonQuiz, getQuizDetail, createQuiz, publishQuiz } from '../../services/instructorQuizService';
+import { getInstructorId, getLessonQuiz, getQuizDetail, createQuiz, generateQuizWithAI, publishQuiz } from '../../services/instructorQuizService';
 import { deleteDraft } from '../../services/instructorDraftService';
 
 // Dữ liệu mặc định khi thêm nội dung
@@ -541,6 +541,13 @@ const ManageLessonContent = () => {
       return;
     }
 
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Tài liệu PDF không được vượt quá 10 MB.');
+      e.target.value = '';
+      setQuizPdfFile(null);
+      return;
+    }
+
     setQuizPdfFile(file);
   };
 
@@ -558,10 +565,10 @@ const ManageLessonContent = () => {
   };
 
   // Tạo câu hỏi trắc nghiệm bằng AI
-  const handleCreateAIQuiz = (e) => {
+  const handleCreateAIQuiz = async (e) => {
     e.preventDefault();
 
-    if (isQuizBusy || quizError || quizActionLock.current) return;
+    if (isQuizBusy || quizError || !instructorId || quizActionLock.current) return;
 
     const title = quizForm.title.trim();
 
@@ -589,8 +596,9 @@ const ManageLessonContent = () => {
     }
 
     // Kiểm tra số lượng câu hỏi
-    if (![4, 5, 10, 15, 20].includes(Number(quizForm.questionCount))) {
-      toast.error('Số lượng câu hỏi không hợp lệ.');
+    const questionCount = Number(quizForm.questionCount);
+    if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 8) {
+      toast.error('Số lượng câu hỏi phải từ 3 đến 8.');
       return;
     }
 
@@ -604,16 +612,33 @@ const ManageLessonContent = () => {
     const payload = new FormData();
     payload.append('title', title);
     payload.append('file', quizPdfFile);
-    payload.append('questionCount', quizForm.questionCount);
+    payload.append('questionCount', questionCount);
     payload.append('difficulty', quizForm.difficulty);
     payload.append('lessonId', lessonId);
 
-    // TODO: Gọi API tạo câu hỏi bằng AI tại đây.
-    // Chỉ tạo bản nháp và chuyển trang khi Backend trả về thành công.
+    quizActionLock.current = true;
+    setQuizSaving(true);
 
-    toast('Chưa tích hợp API tạo câu hỏi bằng AI.', {
-      icon: 'ℹ️'
-    });
+    try {
+      const response = await generateQuizWithAI(instructorId, payload);
+      const createdQuiz = response.result;
+
+      if (!createdQuiz?.quizId || !Array.isArray(createdQuiz.questions)) {
+        throw new Error('Backend không trả về bộ trắc nghiệm hợp lệ.');
+      }
+
+      setQuiz(createdQuiz);
+      setShowAIQuizModal(false);
+      setQuizPdfFile(null);
+      toast.success(response.message || `AI đã tạo ${createdQuiz.questions.length} câu hỏi.`);
+      navigateToQuizEditor(createdQuiz);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      await fetchLessonQuiz();
+    } finally {
+      setQuizSaving(false);
+      quizActionLock.current = false;
+    }
   };
 
   // ==================================================
@@ -1668,11 +1693,9 @@ const ManageLessonContent = () => {
                       }
                       className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                     >
-                      <option value={4}>4 câu hỏi</option>
-                      <option value={5}>5 câu hỏi</option>
-                      <option value={10}>10 câu hỏi</option>
-                      <option value={15}>15 câu hỏi</option>
-                      <option value={20}>20 câu hỏi</option>
+                      {[3, 4, 5, 6, 7, 8].map((count) => (
+                        <option key={count} value={count}>{count} câu hỏi</option>
+                      ))}
                     </select>
                   </div>
 
@@ -1704,6 +1727,7 @@ const ManageLessonContent = () => {
                     </select>
                   </div>
                 </div>
+
               </div>
 
               {/* Nút hủy và tạo câu hỏi bằng AI */}

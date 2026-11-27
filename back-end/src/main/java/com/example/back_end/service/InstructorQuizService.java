@@ -1,5 +1,6 @@
 package com.example.back_end.service;
 
+import com.example.back_end.dto.request.AiQuizGenerateRequest;
 import com.example.back_end.dto.request.QuizCreateRequest;
 import com.example.back_end.dto.request.QuizTitleRequest;
 import com.example.back_end.dto.request.QuestionRequest;
@@ -18,6 +19,9 @@ public interface InstructorQuizService {
 
     // Tạo trắc nghiệm thủ công
     DraftResponse createQuiz(Integer instructorId, QuizCreateRequest request);
+
+    // Tạo bản nháp trắc nghiệm và câu hỏi từ tài liệu PDF bằng AI
+    DraftResponse generateQuizWithAi(Integer instructorId, AiQuizGenerateRequest request);
 
     // Cập nhật tên bộ trắc nghiệm
     DraftResponse updateTitle(Integer instructorId, Integer quizId, QuizTitleRequest request);

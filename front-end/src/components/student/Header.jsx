@@ -3,6 +3,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { UserRound } from "lucide-react";
 import {
   Link,
   NavLink,
@@ -520,11 +521,18 @@ export default function Header() {
                 aria-haspopup="true"
                 className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-slate-100"
               >
-                <img
-                  alt="Profile"
-                  className="h-8 w-8 rounded-full object-cover ring-1 ring-slate-200"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHi4t6EzvBCeJMQWLU4uXSE1qyGan5XZq0H74MkCuxeZGJo40h5SQ6DZggL5lau6zQAEbJ0_rbLz0gaKubjCl3DnkLwstSRhtOgic3Y09rhTyEh8h_x4GJIe20KzAOGSkcPW3wMT2ZmEZPcAAeDG3KTDt0FYyGdYbJu-QV1zuF2nZrbYpxvWfv1_tYf6fINjo15GONdFx5AUegiUW9FbGudy"
-                />
+                {/* ẢNH ĐẠI DIỆN HỌC VIÊN */}
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="Ảnh đại diện"
+                    className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                    <UserRound size={19} />
+                  </div>
+                )}
 
                 <span className="hidden max-w-[120px] truncate text-sm font-semibold text-slate-700 lg:block">
                   {isAuthenticated
@@ -563,20 +571,17 @@ export default function Header() {
                       )}
                   </div>
 
-                  {/* PROFILE LINK */}
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setProfileOpen(false);
-                    }}
+                  {/* QUẢN LÝ THÔNG TIN CÁ NHÂN */}
+                  <Link
+                    to={isAuthenticated ? "/student/profile" : "/login"}
+                    onClick={() => setProfileOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
                     <span className="material-symbols-outlined text-[20px]">
                       person
                     </span>
                     <span>Hồ sơ cá nhân</span>
-                  </a>
+                  </Link>
 
                   {/* PAYMENT HISTORY */}
                   <a
