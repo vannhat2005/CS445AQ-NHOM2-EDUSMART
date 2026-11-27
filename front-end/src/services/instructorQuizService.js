@@ -40,6 +40,12 @@ export const createQuiz = async (instructorId, data) => {
     return response.data;
 };
 
+// Tạo bộ trắc nghiệm và câu hỏi từ tài liệu PDF bằng AI
+export const generateQuizWithAI = async (instructorId, data) => {
+    const response = await api.post(`${getBaseUrl(instructorId)}/ai-generate`, data);
+    return response.data;
+};
+
 // Cập nhật tên bộ trắc nghiệm
 export const updateQuizTitle = async (instructorId, quizId, data) => {
     const response = await api.patch(`${getBaseUrl(instructorId)}/${quizId}/title`, data);

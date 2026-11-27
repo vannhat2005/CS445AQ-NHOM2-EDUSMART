@@ -1,5 +1,6 @@
 package com.example.back_end.controller;
 
+import com.example.back_end.dto.request.AiQuizGenerateRequest;
 import com.example.back_end.dto.request.QuizCreateRequest;
 import com.example.back_end.dto.request.QuizTitleRequest;
 import com.example.back_end.dto.request.QuestionRequest;
@@ -9,6 +10,7 @@ import com.example.back_end.service.InstructorQuizService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/instructors/{instructorId}/quizzes")
@@ -58,6 +60,17 @@ public class InstructorQuizController {
         return ApiResponse.<DraftResponse>builder()
                 .message("Tạo bản nháp trắc nghiệm thành công")
                 .result(instructorQuizService.createQuiz(instructorId, request))
+                .build();
+    }
+
+    @PostMapping(value = "/ai-generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<DraftResponse> generateQuizWithAi(
+            @PathVariable Integer instructorId,
+            @ModelAttribute AiQuizGenerateRequest request
+    ) {
+        return ApiResponse.<DraftResponse>builder()
+                .message("Tạo câu hỏi bằng AI thành công")
+                .result(instructorQuizService.generateQuizWithAi(instructorId, request))
                 .build();
     }
 

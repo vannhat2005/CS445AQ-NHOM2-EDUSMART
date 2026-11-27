@@ -119,24 +119,37 @@ const SidebarInstructor = () => {
         <div className="flex items-center justify-between gap-2">
 
           {/* THÔNG TIN GIẢNG VIÊN */}
-          <div className="flex min-w-0 items-center gap-3">
+          <NavLink
+            to="/instructor/profile"
+            title="Quản lý thông tin cá nhân"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-1 transition-colors hover:bg-blue-50"
+          >
 
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-              <UserRound size={19} />
-            </div>
+  {/* ẢNH ĐẠI DIỆN */}
+  {user?.avatarUrl ? (
+    <img
+      src={user.avatarUrl}
+      alt="Ảnh đại diện"
+      className="h-8 w-8 shrink-0 rounded-full object-cover"
+    />
+  ) : (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+      <UserRound size={19} />
+    </div>
+  )}
 
-            <div className="min-w-0">
+  {/* TÊN VÀ VAI TRÒ GIẢNG VIÊN */}
+  <div className="min-w-0">
+    <p className="truncate text-sm font-semibold leading-tight text-gray-800">
+      {displayName}
+    </p>
 
-              <p className="truncate text-sm font-semibold leading-tight text-gray-800">
-                {displayName}
-              </p>
+    <p className="truncate text-xs text-gray-500">
+      Giảng viên
+    </p>
+  </div>
 
-              <p className="truncate text-xs text-gray-500">
-                Giảng viên
-              </p>
-
-            </div>
-          </div>
+</NavLink>
 
           {/* ========================================
               NÚT ĐĂNG XUẤT

@@ -1,4 +1,3 @@
-
 package com.example.back_end.config;
 
 import lombok.RequiredArgsConstructor;
@@ -23,9 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
-
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
@@ -112,6 +109,33 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // ==================================
+                        // ẢNH ĐẠI DIỆN NGƯỜI DÙNG
+                        // ==================================
+                        // Cho phép trình duyệt tải ảnh đại diện
+                        // mà không cần gửi Access Token
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/uploads/avatars/**"
+                        ).permitAll()
+
+                        // ==================================
+                        // QUẢN LÝ THÔNG TIN CÁ NHÂN
+                        // ==================================
+                        // Admin, Student và Instructor đều phải
+                        // đăng nhập để xem thông tin cá nhân
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/users/my-info"
+                        ).authenticated()
+
+                        // Yêu cầu đăng nhập khi cập nhật họ tên
+                        // hoặc thay đổi ảnh đại diện
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/users/my-info"
+                        ).authenticated()
+
+                        // ==================================
                         // ZALOPAY CALLBACK & AI CHATBOX
                         // ==================================
                         // ZaloPay không có JWT của sinh viên.
@@ -123,6 +147,7 @@ public class SecurityConfig {
                                 "/api/chat/**",
                                 "/api/rag/**"
                         ).permitAll()
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/chat/**"

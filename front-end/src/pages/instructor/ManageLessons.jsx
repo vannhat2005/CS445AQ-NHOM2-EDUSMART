@@ -238,8 +238,9 @@ const ManageLessons = () => {
     if (quizCreated || isQuizBusy || quizError) return;
 
     setShowQuizMethodModal(false);
+    const defaultTitle = `Kiểm tra cuối chương: ${chapterTitle || lessons[0]?.chapterTitle || `Chương ${chapterId}`}`;
     setQuizForm({
-      title: `Kiểm tra cuối chương: ${chapterTitle || lessons[0]?.chapterTitle || `Chương ${chapterId}`}`,
+      title: defaultTitle,
       questionCount: 4,
       difficulty: 'BASIC'
     });
@@ -391,8 +392,9 @@ const ManageLessons = () => {
       return;
     }
 
-    if (![4, 5, 10, 15, 20].includes(Number(quizForm.questionCount))) {
-      toast.error('Số lượng câu hỏi không hợp lệ.');
+    const questionCount = Number(quizForm.questionCount);
+    if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 8) {
+      toast.error('Số lượng câu hỏi phải từ 3 đến 8.');
       return;
     }
 
@@ -413,7 +415,7 @@ const ManageLessons = () => {
       questions: []
     }, true, false, 'AI', {
       file: quizPdfFile,
-      questionCount: quizForm.questionCount,
+      questionCount,
       difficulty: quizForm.difficulty
     });
   };
@@ -1328,11 +1330,9 @@ const ManageLessons = () => {
                       }
                       className="w-full h-10 px-3 rounded-lg bg-[#eff4ff] border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                     >
-                      <option value={4}>4 câu hỏi</option>
-                      <option value={5}>5 câu hỏi</option>
-                      <option value={10}>10 câu hỏi</option>
-                      <option value={15}>15 câu hỏi</option>
-                      <option value={20}>20 câu hỏi</option>
+                      {[3, 4, 5, 6, 7, 8].map((count) => (
+                        <option key={count} value={count}>{count} câu hỏi</option>
+                      ))}
                     </select>
                   </div>
 

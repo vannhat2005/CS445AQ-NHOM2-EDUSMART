@@ -183,6 +183,11 @@ public enum ErrorCode {
     QUESTION_INVALID_CORRECT_ANSWER(2811, "Đáp án đúng không hợp lệ", HttpStatus.BAD_REQUEST),
     QUIZ_INVALID_LOCATION(2812, "Chương học hoặc bài học không hợp lệ", HttpStatus.BAD_REQUEST),
     QUIZ_INVALID_TITLE(2813, "Tên trắc nghiệm không hợp lệ", HttpStatus.BAD_REQUEST),
+    QUIZ_AI_INVALID_REQUEST(2814, "Cấu hình tạo trắc nghiệm bằng AI không hợp lệ", HttpStatus.BAD_REQUEST),
+    QUIZ_AI_INVALID_PDF(2815, "Tài liệu PDF không hợp lệ hoặc không trích xuất được nội dung", HttpStatus.BAD_REQUEST),
+    QUIZ_AI_UNAVAILABLE(2816, "Dịch vụ AI chưa được cấu hình hoặc đang tạm thời không khả dụng", HttpStatus.SERVICE_UNAVAILABLE),
+    QUIZ_AI_INVALID_RESPONSE(2817, "AI không trả về bộ câu hỏi hợp lệ. Vui lòng thử lại", HttpStatus.BAD_GATEWAY),
+    QUIZ_AI_INSUFFICIENT_CONTENT(2818, "Tài liệu không đủ nội dung phù hợp để tạo số lượng câu hỏi đã chọn", HttpStatus.BAD_REQUEST),
     // TODO: Bổ sung lỗi bài kiểm tra, câu hỏi và đáp án
 
 
@@ -201,7 +206,18 @@ public enum ErrorCode {
     REPORT_DATE_REQUIRED(2907, "Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc", HttpStatus.BAD_REQUEST),
     REPORT_INVALID_DATE_RANGE(2908, "Ngày bắt đầu không được lớn hơn ngày kết thúc", HttpStatus.BAD_REQUEST),
     REPORT_FUTURE_DATE(2909, "Không được chọn ngày trong tương lai", HttpStatus.BAD_REQUEST),
+// ========================================
+// QUẢN LÝ THÔNG TIN CÁ NHÂN
+// ========================================
 
+    PROFILE_NOT_FOUND(2910, "Không tìm thấy thông tin tài khoản", HttpStatus.NOT_FOUND),
+    PROFILE_FULL_NAME_REQUIRED(2911, "Họ và tên không được để trống", HttpStatus.BAD_REQUEST),
+    PROFILE_FULL_NAME_TOO_LONG(2912, "Họ và tên không được vượt quá 100 ký tự", HttpStatus.BAD_REQUEST),
+    PROFILE_AVATAR_INVALID_TYPE(2913, "Ảnh đại diện phải có định dạng JPG, JPEG hoặc PNG", HttpStatus.BAD_REQUEST),
+    PROFILE_AVATAR_TOO_LARGE(2914, "Dung lượng tệp vượt quá 2MB. Vui lòng chọn tệp nhỏ hơn", HttpStatus.BAD_REQUEST),
+    PROFILE_AVATAR_INVALID(2915, "Tệp ảnh không hợp lệ hoặc không thể đọc được", HttpStatus.BAD_REQUEST),
+    PROFILE_AVATAR_UPLOAD_FAILED(2916, "Không thể lưu ảnh đại diện. Vui lòng thử lại", HttpStatus.INTERNAL_SERVER_ERROR),
+    PROFILE_NO_CHANGES(2917, "Thông tin cá nhân chưa có thay đổi", HttpStatus.BAD_REQUEST),
     // TODO: Bổ sung lỗi tạo, gửi và quản lý thông báo;
 
     // ==========================================
